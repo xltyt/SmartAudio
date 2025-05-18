@@ -1,7 +1,7 @@
 /****************************************************\
  *
  * Copyright (C) 2019 All Rights Reserved
- * Last modified: 2025.05.11 19:58:15
+ * Last modified: 2025.05.13 20:13:36
  *
 \****************************************************/
 
@@ -25,7 +25,7 @@ int GetWavInfo(const std::string& path, int& nchannels, int& sampwidth, int& fra
   return 0;
 }
 
-int LoadWav(const std::string& path, int target_sr, std::vector<float>& result) {
+int LoadWav(const std::string& path, int target_sr, std::vector<float>& result, int& channels) {
   /*
   import torch
   import torchaudio
@@ -45,7 +45,7 @@ int LoadWav(const std::string& path, int target_sr, std::vector<float>& result) 
     return -1;
   }
   int orig_sr = sf_info.samplerate;
-  int channels  = sf_info.channels;
+  channels  = sf_info.channels;
   long long frames = sf_info.frames;  
   
   // 读取全部帧（交错格式，归一化到 [-1,1] 的 float）

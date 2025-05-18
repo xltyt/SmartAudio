@@ -45,6 +45,12 @@ else
 endif
 TORCH_AUDIO_ROOT = $(THIRD_DIR)/torchaudio/cpu
 
+ifeq ($(MODE),gpu)
+  ONNX_ROOT = $(THIRD_DIR)/onnx/gpu/$(CUDA_VERSION)
+else
+  ONNX_ROOT = $(THIRD_DIR)/onnx/cpu
+endif
+
 CUDA_INCLUDE ?= 
 ifeq ($(MODE),gpu)
 	CUDA_INCLUDE = -I/usr/local/cuda-$(CUDA_VERSION)/include
@@ -69,99 +75,124 @@ INCLUDES += \
   -I$(TORCH_ROOT)/include/ \
   -I$(TORCH_ROOT)/include/torch/csrc/api/include/ \
   -I$(TORCH_AUDIO_ROOT)/include/ \
+  -I$(ONNX_ROOT)/include/ \
+  -I$(ONNX_ROOT)/include/onnxruntime \
+  -I$(ONNX_ROOT)/include/onnxruntime/core/session \
   $(CUDA_INCLUDE) \
   -I$(THIRD_DIR)/include/eigen3/ \
   -I$(THIRD_DIR)/include/
 
-#ABSL_LIBS= \
-#  -labsl_civil_time \
-#  -labsl_cord \
-#  -labsl_cord_internal \
-#  -labsl_cordz_functions \
-#  -labsl_cordz_handle \
-#  -labsl_cordz_info \
-#  -labsl_cordz_sample_token \
-#  -labsl_crc32c \
-#  -labsl_crc_cord_state \
-#  -labsl_crc_cpu_detect \
-#  -labsl_crc_internal \
-#  -labsl_die_if_null \
-#  -labsl_exponential_biased \
-#  -labsl_failure_signal_handler \
-#  -labsl_flags_commandlineflag \
-#  -labsl_flags_commandlineflag_internal \
-#  -labsl_flags_config \
-#  -labsl_flags_internal \
-#  -labsl_flags_marshalling \
-#  -labsl_flags_parse \
-#  -labsl_flags_private_handle_accessor \
-#  -labsl_flags_program_name \
-#  -labsl_flags_reflection \
-#  -labsl_flags_usage \
-#  -labsl_flags_usage_internal \
-#  -labsl_graphcycles_internal \
-#  -labsl_hash \
-#  -labsl_city \
-#  -labsl_leak_check \
-#  -labsl_log_initialize \
-#  -labsl_log_internal_message \
-#  -labsl_log_internal_structured_proto \
-#  -labsl_log_internal_check_op \
-#  -labsl_log_internal_conditions \
-#  -labsl_log_internal_format \
-#  -labsl_log_internal_globals \
-#  -labsl_log_internal_log_sink_set \
-#  -labsl_log_internal_nullguard \
-#  -labsl_log_internal_proto \
-#  -labsl_log_severity \
-#  -labsl_log_sink \
-#  -labsl_log_entry \
-#  -labsl_log_flags \
-#  -labsl_log_globals \
-#  -labsl_examine_stack \
-#  -labsl_periodic_sampler \
-#  -labsl_random_distributions \
-#  -labsl_random_internal_distribution_test_util \
-#  -labsl_random_internal_platform \
-#  -labsl_random_internal_randen \
-#  -labsl_random_internal_randen_hwaes \
-#  -labsl_random_internal_randen_hwaes_impl \
-#  -labsl_random_internal_randen_slow \
-#  -labsl_random_internal_seed_material \
-#  -labsl_random_seed_gen_exception \
-#  -labsl_random_seed_sequences \
-#  -labsl_raw_hash_set \
-#  -labsl_raw_logging_internal \
-#  -labsl_hashtablez_sampler \
-#  -labsl_scoped_set_env \
-#  -labsl_spinlock_wait \
-#  -labsl_stacktrace \
-#  -labsl_symbolize \
-#  -labsl_debugging_internal \
-#  -labsl_status \
-#  -labsl_statusor \
-#  -labsl_strerror \
-#  -labsl_str_format_internal \
-#  -labsl_strings \
-#  -labsl_strings_internal \
-#  -labsl_string_view \
-#  -labsl_demangle_internal \
-#  -labsl_demangle_rust \
-#  -labsl_decode_rust_punycode \
-#  -labsl_utf8_for_code_point \
-#  -labsl_malloc_internal \
-#  -labsl_synchronization \
-#  -labsl_kernel_timeout_internal \
-#  -labsl_throw_delegate \
-#  -labsl_int128 \
-#  -labsl_time \
-#  -labsl_time_zone \
-#  -labsl_base
-#  -lre2 $(ABSL_LIBS)
+ABSL_LIBS= \
+  -labsl_civil_time \
+  -labsl_cord \
+  -labsl_cordz_functions \
+  -labsl_cordz_info \
+  -labsl_cordz_sample_token \
+  -labsl_cordz_handle \
+  -labsl_cord_internal \
+  -labsl_crc_cord_state \
+  -labsl_crc_cpu_detect \
+  -labsl_crc32c \
+  -labsl_crc_internal \
+  -labsl_die_if_null \
+  -labsl_exponential_biased \
+  -labsl_failure_signal_handler \
+  -labsl_flags_commandlineflag \
+  -labsl_flags_commandlineflag_internal \
+  -labsl_flags_config \
+  -labsl_flags_internal \
+  -labsl_flags_marshalling \
+  -labsl_flags_parse \
+  -labsl_flags_private_handle_accessor \
+  -labsl_flags_program_name \
+  -labsl_flags_reflection \
+  -labsl_flags_usage \
+  -labsl_flags_usage_internal \
+  -labsl_graphcycles_internal \
+  -labsl_leak_check \
+  -labsl_log_initialize \
+  -labsl_log_internal_message \
+  -labsl_log_internal_check_op \
+  -labsl_log_internal_conditions \
+  -labsl_log_internal_format \
+  -labsl_log_internal_globals \
+  -labsl_log_internal_log_sink_set \
+  -labsl_log_internal_nullguard \
+  -labsl_log_internal_proto \
+  -labsl_log_severity \
+  -labsl_log_sink \
+  -labsl_log_entry \
+  -labsl_log_flags \
+  -labsl_log_globals \
+  -labsl_examine_stack \
+  -labsl_periodic_sampler \
+  -labsl_random_distributions \
+  -labsl_random_internal_distribution_test_util \
+  -labsl_random_internal_platform \
+  -labsl_random_internal_randen \
+  -labsl_random_internal_randen_hwaes \
+  -labsl_random_internal_randen_hwaes_impl \
+  -labsl_random_internal_randen_slow \
+  -labsl_random_internal_seed_material \
+  -labsl_random_seed_gen_exception \
+  -labsl_random_seed_sequences \
+  -labsl_hash \
+  -labsl_raw_hash_set \
+  -labsl_raw_logging_internal \
+  -labsl_low_level_hash \
+  -labsl_hashtablez_sampler \
+  -labsl_city \
+  -labsl_scoped_set_env \
+  -labsl_spinlock_wait \
+  -labsl_stacktrace \
+  -labsl_symbolize \
+  -labsl_debugging_internal \
+  -labsl_status \
+  -labsl_statusor \
+  -labsl_strerror \
+  -labsl_str_format_internal \
+  -labsl_strings \
+  -labsl_strings_internal \
+  -labsl_string_view \
+  -labsl_demangle_internal \
+  -labsl_malloc_internal \
+  -labsl_synchronization \
+  -labsl_kernel_timeout_internal \
+  -labsl_throw_delegate \
+  -labsl_int128 \
+  -labsl_time \
+  -labsl_time_zone \
+  -labsl_base
+  
+#-L$(TORCH_AUDIO_ROOT)/lib -ltorchaudio
+TORCH_STATIC_LIB=\
+  -Wl,--whole-archive \
+  $(TORCH_ROOT)/lib/libtorch.a \
+  $(TORCH_ROOT)/lib/libtorch_cpu.a \
+  $(TORCH_ROOT)/lib/libc10.a \
+  $(TORCH_ROOT)/lib/libfbgemm.a \
+  $(TORCH_ROOT)/lib/libdnnl.a \
+  $(TORCH_ROOT)/lib/libpytorch_qnnpack.a \
+  $(TORCH_ROOT)/lib/libXNNPACK.a \
+  $(TORCH_ROOT)/lib/libkineto.a \
+  $(TORCH_ROOT)/lib/libsleef.a \
+  $(TORCH_ROOT)/lib/libtensorpipe.a \
+  $(TORCH_ROOT)/lib/libtensorpipe_uv.a \
+  $(TORCH_ROOT)/lib/libasmjit.a \
+  $(TORCH_ROOT)/lib/libnnpack.a \
+  $(TORCH_ROOT)/lib/libcpuinfo.a \
+  $(TORCH_ROOT)/lib/libpthreadpool.a \
+  $(TORCH_ROOT)/lib/libgloo.a \
+  $(TORCH_ROOT)/lib/libonnx.a \
+  $(TORCH_ROOT)/lib/libonnx_proto.a \
+  $(TORCH_ROOT)/lib/libclog.a \
+  -Wl,--no-whole-archive \
+  -lopenblas
+
 BASE_LIBS += $(THIRD_DIR)/../lib/libmycommon.a
 BASE_LIBS += \
-  -L$(TORCH_AUDIO_ROOT)/lib -ltorchaudio \
-  -L$(TORCH_ROOT)/lib -ltorch -ltorch_cpu -ltorch_global_deps -lc10 \
+  -L$(ONNX_ROOT)/lib -lonnxruntime \
+  -L$(TORCH_ROOT)/lib -ltorch_cpu -ltorch -lc10 \
   $(CUDA_LIB) \
   -L$(THIRD_DIR)/lib \
   -lsamplerate -lsndfile \
@@ -201,6 +232,9 @@ CXXFLAGS  = $(CFLAGS) -std=c++17
 
 SOURCES += \
   frontend_utils.cpp \
+  frontend_audio_utils.cpp \
+  inference_zero_shot.cpp \
+  frontend.cpp \
   audio_utils.cpp \
   tiktoken.cpp \
   whisper_token.cpp \
@@ -236,7 +270,10 @@ $(TEST_DIR)/test_search : \
 	$(OBJS_DIR)/core_bpe.o \
 	$(OBJS_DIR)/whisper_token.o \
 	$(OBJS_DIR)/audio_utils.o \
-	$(OBJS_DIR)/frontend_utils.o
+	$(OBJS_DIR)/frontend_utils.o \
+	$(OBJS_DIR)/frontend_audio_utils.o \
+	$(OBJS_DIR)/frontend.o \
+	$(OBJS_DIR)/inference_zero_shot.o
 	$(CXX) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS) $(WEB_LIBPATHS) $(WEB_LIBS) -Wl,-rpath=../lib -Wl,-rpath=lib -lgtest
 	$(STRIP) $@
 

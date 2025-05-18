@@ -52,19 +52,6 @@ make install
 cd ..
 rm -rf glog-${GLOG_VERSION}
 
-export GTEST_VERSION=1.8.1
-cp -r $CUR_DIR/pkg/gtest googletest-release-${GTEST_VERSION}
-cd googletest-release-${GTEST_VERSION}
-sed -i 's/int dummy;/int dummy = 0;/g' googletest/src/gtest-death-test.cc
-mkdir build
-cd build
-cmake ${CMAKE_PARAM} -DCMAKE_C_FLAGS="-fPIC -lpthread -I$DST/include" -DCMAKE_CXX_FLAGS="-fPIC -lpthread -I$DST/include" -DCMAKE_INSTALL_LIBDIR=$DST/lib -DCMAKE_INSTALL_PREFIX=$DST ../
-make
-make install
-cd ..
-cd ..
-rm -rf googletest-release-${GTEST_VERSION}
-
 exit 0
 
 # vim: set expandtab nu ts=4 sw=4 sts=4:

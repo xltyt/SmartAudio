@@ -10,8 +10,8 @@ set -x
 
 DST=$CUR_DIR/../../../${PLATFORM}/local
 DST_C=$(echo $DST | sed 's/\//\\\//g')
-#CPU_COUNT=$(cat /proc/cpuinfo | grep "processor" | awk -F": " '{print $2}' | wc -l)
-CPU_COUNT=12
+CPU_COUNT=$(cat /proc/cpuinfo | grep "processor" | awk -F": " '{print $2}' | wc -l)
+#CPU_COUNT=12
 
 mkdir -p ${CUR_DIR}/../../../build
 cd ${CUR_DIR}/../../../build
@@ -29,6 +29,7 @@ cd pytorch
 #export GLIBCXX_USE_CXX11_ABI=0
 #sed -i '71aset(GLIBCXX_USE_CXX11_ABI 0)' CMakeLists.txt
 #sed -i 's/PYTHON_EXECUTABLE={sys.executable}/PYTHON_EXECUTABLE=python3/g' third_party/onnx/setup.py
+#sed -i 's/add_library/#add_library/g' cmake/public/glog.cmake
 
 if [ ! -d $DST/torch/cpu/lib ]; then
   mkdir -p build_cpu
@@ -61,6 +62,7 @@ if [ ! -d $DST/torch/cpu/lib ]; then
     -DBUILD_ONNX_PYTHON=False \
     -DBUILD_SHARED_LIBS=ON \
     -DBUILD_CUSTOM_PROTOBUF=OFF \
+    -DUSE_GLOG=OFF \
     -DCMAKE_PREFIX_PATH=$DST \
     -DCMAKE_EXE_LINKER_FLAGS="-L$DST/lib -static-libstdc++ -static-libgcc -lprotobuf -l:libgfortran.a -Wl,--no-as-needed -lgfortran" \
     -DCMAKE_MODULE_LINKER_FLAGS="-L$DST/lib -static-libstdc++ -static-libgcc -lprotobuf -l:libgfortran.a -Wl,--no-as-needed -lgfortran" \
@@ -78,6 +80,10 @@ if [ ! -d $DST/torch/cpu/lib ]; then
     ..
     make VERBOSE=1 -j${CPU_COUNT}
     make install
+    #cp lib/libgloo.a $DST/torch/cpu/lib/
+    #cp lib/libonnx_proto.a $DST/torch/cpu/lib/
+    #cp lib/libonnx.a $DST/torch/cpu/lib/
+    #cp lib/libclog.a $DST/torch/cpu/lib/
   else
     cmake \
     -DUSE_CUDA=False \
@@ -86,6 +92,7 @@ if [ ! -d $DST/torch/cpu/lib ]; then
     -DBUILD_ONNX_PYTHON=False \
     -DBUILD_SHARED_LIBS=ON \
     -DBUILD_CUSTOM_PROTOBUF=OFF \
+    -DUSE_GLOG=OFF \
     -DCMAKE_PREFIX_PATH=$DST \
     -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc" \
     -DCMAKE_MODULE_LINKER_FLAGS="-static-libstdc++ -static-libgcc" \
@@ -94,6 +101,10 @@ if [ ! -d $DST/torch/cpu/lib ]; then
     ..
     make VERBOSE=1 -j${CPU_COUNT}
     make install
+    #cp lib/libgloo.a $DST/torch/cpu/lib/
+    #cp lib/libonnx_proto.a $DST/torch/cpu/lib/
+    #cp lib/libonnx.a $DST/torch/cpu/lib/
+    #cp lib/libclog.a $DST/torch/cpu/lib/
     mkdir -p $DST/torch/cpu/bin
     cp -f sleef/bin/* $DST/torch/cpu/bin/
   fi

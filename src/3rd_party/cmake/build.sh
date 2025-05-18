@@ -10,8 +10,8 @@ DST=$CUR_DIR/../../../${PLATFORM}/local
 DST_C=$(echo $DST | sed 's/\//\\\//g')
 CPU_COUNT=$(cat /proc/cpuinfo | grep "processor" | awk -F": " '{print $2}' | wc -l)
 export PATH=$DST/bin:$PATH
-export PKG_CONFIG_PATH=$DST/lib/pkgconfig:$PKG_CONFIG_PATH
-export LD_LIBRARY_PATH=$DST/lib:$LD_LIBRARY_PATH
+#export PKG_CONFIG_PATH=$DST/lib/pkgconfig:$PKG_CONFIG_PATH
+#export LD_LIBRARY_PATH=$DST/lib:$LD_LIBRARY_PATH
 mkdir -p ${CUR_DIR}/../../../build
 cd ${CUR_DIR}/../../../build
 

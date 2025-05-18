@@ -176,29 +176,29 @@ rm -rf leveldb-${LEVELDB_VERSION}
 #cd ..
 #rm -rf protobuf-${PROTOBUF_VERSION}
 
-cp -r $CUR_DIR/pkg/protobuf protobuf-${PROTOBUF_VERSION}
-cd protobuf-${PROTOBUF_VERSION}
-sh autogen.sh
-if [ "$PLATFORM" = "arm" ]; then
-  CFLAGS="-I$DST/include/ $PARAM" CPPFLAGS="-I$DST/include/ $PARAM" CXXFLAGS="-I$DST/include/ $PARAM" LDFLAGS="-L$DST/lib $PARAM_LD -lz" ./configure ${CROSS_HOST_PARAM} --prefix=$DST --enable-shared=no --enable-static=yes --with-pic --with-zlib=$DST
-else
-  CFLAGS="-Wno-error -I$DST/include/" CPPFLAGS="-Wno-error -I$DST/include/" LDFLAGS="-L$DST/lib -lz"  ./configure --prefix=$DST --enable-shared=no --with-pic=yes --with-zlib=$DST
-fi
-make -j$CPU_COUNT
-make install
-cd ..
-rm -rf protobuf-${PROTOBUF_VERSION}
-
-if [ ! -d $DST/amd64/protobuf ]; then
-  cp -r $CUR_DIR/pkg/protobuf protobuf-${PROTOBUF_VERSION}
-  cd protobuf-${PROTOBUF_VERSION}
-  sh autogen.sh
-  CFLAGS="-Wno-error -I$DST/include/" CPPFLAGS="-Wno-error -I$DST/include/" LDFLAGS="-L$DST/lib -lz" ./configure --prefix=$DST/amd64/protobuf --enable-shared=no --with-pic=yes --with-zlib=$DST
-  make -j$CPU_COUNT
-  make install
-  cd ..
-  rm -rf protobuf-${PROTOBUF_VERSION}
-fi
+#cp -r $CUR_DIR/pkg/protobuf protobuf-${PROTOBUF_VERSION}
+#cd protobuf-${PROTOBUF_VERSION}
+#sh autogen.sh
+#if [ "$PLATFORM" = "arm" ]; then
+#  CFLAGS="-I$DST/include/ $PARAM" CPPFLAGS="-I$DST/include/ $PARAM" CXXFLAGS="-I$DST/include/ $PARAM" LDFLAGS="-L$DST/lib $PARAM_LD -lz" ./configure ${CROSS_HOST_PARAM} --prefix=$DST --enable-shared=no --enable-static=yes --with-pic --with-zlib=$DST
+#else
+#  CFLAGS="-Wno-error -I$DST/include/" CPPFLAGS="-Wno-error -I$DST/include/" LDFLAGS="-L$DST/lib -lz"  ./configure --prefix=$DST --enable-shared=no --with-pic=yes --with-zlib=$DST
+#fi
+#make -j$CPU_COUNT
+#make install
+#cd ..
+#rm -rf protobuf-${PROTOBUF_VERSION}
+#
+#if [ ! -d $DST/amd64/protobuf ]; then
+#  cp -r $CUR_DIR/pkg/protobuf protobuf-${PROTOBUF_VERSION}
+#  cd protobuf-${PROTOBUF_VERSION}
+#  sh autogen.sh
+#  CFLAGS="-Wno-error -I$DST/include/" CPPFLAGS="-Wno-error -I$DST/include/" LDFLAGS="-L$DST/lib -lz" ./configure --prefix=$DST/amd64/protobuf --enable-shared=no --with-pic=yes --with-zlib=$DST
+#  make -j$CPU_COUNT
+#  make install
+#  cd ..
+#  rm -rf protobuf-${PROTOBUF_VERSION}
+#fi
 
 #tar zxf ${CUR_DIR}/pkg/incubator-brpc-${BRPC_VERSION}.tar.gz
 #cd incubator-brpc-${BRPC_VERSION}

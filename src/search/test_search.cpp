@@ -1,19 +1,23 @@
 /****************************************************\
  *
  * Copyright (C) 2019 All Rights Reserved
- * Last modified: 2025.05.13 10:51:46
+ * Last modified: 2025.05.18 19:47:45
  *
 \****************************************************/
 
+#include <iostream>
 #include <gtest/gtest.h>
 #include <glog/logging.h>
 #include <crypt_utils.h>
 #include <file_utils.h>
 #include <string_utils.h>
+#include <timer.h>
 #include "tiktoken.h"
 #include "whisper_token.h"
 #include "audio_utils.h"
 #include "frontend_utils.h"
+#include "frontend_audio_utils.h"
+#include "inference_zero_shot.h"
 
 TEST(Search, Utf8) {
   {
@@ -147,9 +151,10 @@ TEST(Search, Wav) {
   std::string output_path = "out_" + Crypt::gen_random_string(8) + ".wav";
   ConvertToWav(path, output_path);
   std::vector<float> result;
-  int ret = LoadWav(output_path, 160000, result);
+  int channels = 0;
+  int ret = LoadWav(output_path, 160000, result, channels);
   ASSERT_EQ(ret, -1);
-  ret = LoadWav(output_path, 16000, result);
+  ret = LoadWav(output_path, 16000, result, channels);
   ASSERT_EQ(ret, 0);
   LOG(INFO) << "Len[" << result.size() << "]";
   unlink(output_path.c_str());
@@ -243,10 +248,162 @@ TEST(Search, FrontendUtils) {
   }
 }
 
-TEST(Search, Text) {
+template <typename T>
+std::vector<T> tensor_to_list_1d(torch::Tensor tensor) {
+	tensor = tensor.to(torch::kCPU).contiguous();
+	T* data = tensor.data_ptr<T>();
+	return std::vector<T>(data, data + tensor.numel());
 }
 
-TEST(Search, LLM) {
+TEST(Search, Frontend) {
+  const std::string speech_token_path = mycommon::str_format("./data/model/speech_tokenizer_v1.onnx");
+  Frontend frontend(speech_token_path);
+  {
+    auto [text_token, text_token_len] = frontend.extract_text_token("主席说我开飞机的水平很高。");
+  	ASSERT_EQ(2, text_token.dim());
+    std::vector<int> text_token_d0 = tensor_to_list_1d<int>(text_token[0]);
+    ASSERT_EQ(15, text_token_d0.size());
+    ASSERT_EQ(true, text_token_d0 == std::vector<int>({13557, 4845, 255, 8090, 1654, 18937, 11808, 252, 37960, 1546, 15590, 16716, 4563, 12979, 1543}));
+  	
+    ASSERT_EQ(0, text_token_len.dim());
+    ASSERT_EQ(true, text_token_len.scalar_type() == torch::kInt32);
+    ASSERT_EQ(15, *(text_token_len.to(torch::kInt32).data_ptr<int>()));
+	}
+  {
+    //auto [text_token, text_token_len] = frontend.extract_text_token("2024年，我们一起走过春夏秋冬，一道经历风雨彩虹，一个个瞬间定格在这不平凡的一年，令人感慨、难以忘怀。");
+    auto [text_token, text_token_len] = frontend.extract_text_token("二零二四年，我们一起走过春夏秋冬，一道经历风雨彩虹，一个个瞬间定格在这不平凡的一年，令人感慨、难以忘怀。");
+  	ASSERT_EQ(2, text_token.dim());
+    std::vector<int> text_token_d0 = tensor_to_list_1d<int>(text_token[0]);
+    ASSERT_EQ(66, text_token_d0.size());
+    ASSERT_EQ(true, text_token_d0 == std::vector<int>({11217, 6306, 114, 11217, 19425, 5157, 171, 120, 234, 15003, 29567, 9575, 16866, 46953, 42708, 40190, 5676, 105, 171, 120, 234, 2257, 6025, 30276, 5014, 228, 47209, 35339, 7391, 102, 12026, 117, 171, 120, 234, 20182, 7549, 36733, 105, 31685, 12088, 30921, 3581, 5562, 1960, 16716, 6336, 94, 1546, 2257, 5157, 171, 120, 234, 49061, 4035, 9709, 12358, 101, 1231, 46531, 3588, 26677, 3757, 222, 1543}));
+  	
+    ASSERT_EQ(0, text_token_len.dim());
+    ASSERT_EQ(true, text_token_len.scalar_type() == torch::kInt32);
+    ASSERT_EQ(66, *(text_token_len.to(torch::kInt32).data_ptr<int>()));
+	}
+
+  // Resample
+  std::vector<float> prompt_speech_16k;
+  int channels = 0;
+  {
+    const std::string& path = "data/mda-qmwfy2k746929rxh.mp3";
+    std::string output_path = "out_" + Crypt::gen_random_string(8) + ".wav";
+    ConvertToWav(path, output_path);
+    int ret = LoadWav(output_path, 16000, prompt_speech_16k, channels);
+    ASSERT_EQ(ret, 0);
+    LOG(INFO) << "Len[" << prompt_speech_16k.size() << "]";
+    unlink(output_path.c_str());
+  }
+	LOG(INFO) << "Len[" << prompt_speech_16k.size() << "]";
+  mycommon::file_write("data.txt", mycommon::str_join(prompt_speech_16k, "\n"));
+  ASSERT_EQ(304000, prompt_speech_16k.size());
+  ASSERT_EQ(true, std::fabs(prompt_speech_16k[0] - -0.000946044921875) < 0.00000000001);
+  ASSERT_EQ(true, std::fabs(prompt_speech_16k[304000 - 1] - -0.004119873046875) < 0.00000000001);
+  std::vector<float> prompt_speech_resample = resample(prompt_speech_16k, 16000, 22050, channels);
+	LOG(INFO) << "Len[" << prompt_speech_resample.size() << "]";
+  mycommon::file_write("data_resample.txt", mycommon::str_join(prompt_speech_resample, "\n"));
+  ASSERT_EQ(418950, prompt_speech_resample.size());
+  ASSERT_EQ(true, std::fabs(prompt_speech_resample[0] - -0.0009422693401575089) < 0.00000000001);
+  LOG(INFO) << prompt_speech_resample[418950 - 1];
+  ASSERT_EQ(true, std::fabs(prompt_speech_resample[418950 - 1] - -0.0029986100271344185) < 0.00000000001);
+
+  // Feat
+  auto prompt_speech_resample_tensor = torch::zeros({1, (int)prompt_speech_resample.size()}, torch::kFloat32);
+  for (int i = 0; i < (int)prompt_speech_resample.size(); ++i) {
+    prompt_speech_resample_tensor[0][i] = prompt_speech_resample[i];
+  }
+  auto [speech_feat, speech_feat_len] = extract_speech_feat(prompt_speech_resample_tensor);
+  {
+    LOG(INFO) << "Feat Dim[" << speech_feat.dim() << "]";
+  	ASSERT_EQ(3, speech_feat.dim());
+    auto sizes = speech_feat.sizes();
+  	ASSERT_EQ(1, sizes[0]);
+  	ASSERT_EQ(1636, sizes[1]);
+  	ASSERT_EQ(80, sizes[2]);
+    std::vector<float> speech_feat_d0 = tensor_to_list_1d<float>(speech_feat[0][0]);
+    ASSERT_EQ(80, speech_feat_d0.size());
+    ASSERT_EQ(true, std::fabs(speech_feat_d0[0] - -7.598185062408447) < 0.000001);
+    ASSERT_EQ(true, std::fabs(speech_feat_d0[80 - 1] - -11.512925148010254) < 0.000001);
+    std::vector<float> speech_feat_d1 = tensor_to_list_1d<float>(speech_feat[0][1636 - 1]);
+    ASSERT_EQ(80, speech_feat_d1.size());
+    ASSERT_EQ(true, std::fabs(speech_feat_d1[0] - -4.29597282409668) < 0.000001);
+    ASSERT_EQ(true, std::fabs(speech_feat_d1[80 - 1] - -9.77196216583252) < 0.000001);
+  }
+  {
+    LOG(INFO) << "Feat Len Dim[" << speech_feat_len.dim() << "]";
+  	ASSERT_EQ(1, speech_feat_len.dim());
+    std::vector<int> speech_feat_len_d0 = tensor_to_list_1d<int>(speech_feat_len[0]);
+    ASSERT_EQ(1, speech_feat_len_d0.size());
+  	ASSERT_EQ(1636, speech_feat_len_d0[0]);
+  }
+
+  // Log Mel
+  auto prompt_speech_16k_tensor = torch::zeros({1, (int)prompt_speech_16k.size()}, torch::kFloat32);
+  for (int i = 0; i < (int)prompt_speech_16k.size(); ++i) {
+    prompt_speech_16k_tensor[0][i] = prompt_speech_16k[i];
+  }
+  torch::Tensor prompt_speech_16k_log_mel = log_mel_spectrogram(prompt_speech_16k_tensor, 128);
+  {
+    LOG(INFO) << "Log Mel Dim[" << prompt_speech_16k_log_mel.dim() << "]";
+    ASSERT_EQ(3, prompt_speech_16k_log_mel.dim());
+    auto sizes = prompt_speech_16k_log_mel.sizes();
+  	ASSERT_EQ(1, sizes[0]);
+  	ASSERT_EQ(128, sizes[1]);
+  	ASSERT_EQ(1900, sizes[2]);
+    std::vector<float> prompt_speech_16k_log_mel_d0 = tensor_to_list_1d<float>(prompt_speech_16k_log_mel[0][0]);
+    ASSERT_EQ(1900, prompt_speech_16k_log_mel_d0.size());
+    ASSERT_EQ(true, std::fabs(prompt_speech_16k_log_mel_d0[0] - -0.5229721069335938) < 0.000001);
+    std::vector<float> prompt_speech_16k_log_mel_d1 = tensor_to_list_1d<float>(prompt_speech_16k_log_mel[0][1]);
+    ASSERT_EQ(1900, prompt_speech_16k_log_mel_d1.size());
+    ASSERT_EQ(true, std::fabs(prompt_speech_16k_log_mel_d1[0] - -0.4254077672958374) < 0.000001);
+    std::vector<float> prompt_speech_16k_log_mel_d2 = tensor_to_list_1d<float>(prompt_speech_16k_log_mel[0][128 - 1]);
+    ASSERT_EQ(1900, prompt_speech_16k_log_mel_d2.size());
+    ASSERT_EQ(true, std::fabs(prompt_speech_16k_log_mel_d2[1900 - 1] - -0.6115405559539795) < 0.000001);
+  }
+
+  // Speech Token
+  uint64_t time_start = mycommon::getMilliTime();
+  auto [speech_token, speech_token_len] = frontend.extract_speech_token(prompt_speech_16k_tensor);
+  {
+    LOG(INFO) << "Speech Token Dim[" << speech_token.dim() << "]";
+    ASSERT_EQ(2, speech_token.dim());
+    auto sizes = speech_token.sizes();
+  	ASSERT_EQ(1, sizes[0]);
+  	ASSERT_EQ(950, sizes[1]);
+    std::vector<int> speech_token_d0 = tensor_to_list_1d<int>(speech_token[0]);
+    ASSERT_EQ(950, speech_token_d0.size());
+    ASSERT_EQ(203, speech_token_d0[0]);
+    ASSERT_EQ(26, speech_token_d0[1]);
+    ASSERT_EQ(40, speech_token_d0[950 - 2]);
+    ASSERT_EQ(2130, speech_token_d0[950 - 1]);
+  }
+  LOG(INFO) << "Speech Token Time[" << (mycommon::getMilliTime() - time_start) << "]";
+}
+
+TEST(Search, Tensor) {
+  auto x = torch::randn({5, 5}); 
+  torch::save(x, "/tmp/1.pt");
+  torch::Tensor y;
+  torch::load(y, "/tmp/1.pt");
+  LOG(INFO) << "Load Finished";
+}
+
+TEST(Search, Infer) {
+  std::vector<float> prompt_speech_16k;
+  int channels = 0;
+  {
+    const std::string& path = "data/mda-qmwfy2k746929rxh.mp3";
+    std::string output_path = "out_" + Crypt::gen_random_string(8) + ".wav";
+    ConvertToWav(path, output_path);
+    int ret = LoadWav(output_path, 16000, prompt_speech_16k, channels);
+    ASSERT_EQ(ret, 0);
+    LOG(INFO) << "Len[" << prompt_speech_16k.size() << "]";
+    unlink(output_path.c_str());
+  }
+  InferenceZeroShot infer(".");
+  const std::string& tts_text = "主席说我开飞机的水平很高";
+  const std::string& prompt_text = "2024年，我们一起走过春夏秋冬，一道经历风雨彩虹，一个个瞬间定格在这不平凡的一年，令人感慨、难以忘怀。";
+  infer.inference_zero_shot(tts_text, prompt_text, prompt_speech_16k);
 }
 
 int main(int argc, char *argv[]) {
