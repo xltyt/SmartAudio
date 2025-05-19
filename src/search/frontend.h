@@ -18,16 +18,23 @@
 
 class Frontend {
 public:
-  Frontend(const std::string& speech_tokenizer_model_path);
+  Frontend(
+    const std::string& speech_tokenizer_model_path,
+    const std::string& campplus_model_path 
+    );
   virtual ~Frontend();
     
 public:
   struct ZeroShotInput {
-    std::vector<int32_t> text_tokens;
-    std::vector<int32_t> prompt_text_tokens;
-    std::vector<int32_t> prompt_speech_tokens;
-    std::vector<float> prompt_speech_feat;
-    std::vector<float> speaker_embedding;
+    torch::Tensor text;
+    torch::Tensor text_len;
+    torch::Tensor prompt_text;
+    torch::Tensor prompt_text_len;
+    torch::Tensor prompt_speech_token;
+    torch::Tensor prompt_speech_token_len;
+    torch::Tensor prompt_speech_feat;
+    torch::Tensor prompt_speech_feat_len;
+    torch::Tensor embedding;
   };
   int frontend_zero_shot(
     const std::string& tts_text,
@@ -41,10 +48,14 @@ public:
   std::pair<torch::Tensor, torch::Tensor> extract_text_token(const std::string& text);
   std::pair<torch::Tensor, torch::Tensor> extract_speech_feat(const torch::Tensor& speech);
   std::pair<torch::Tensor, torch::Tensor> extract_speech_token(const torch::Tensor& speech);
+  torch::Tensor extract_spk_embedding(const torch::Tensor& speech);
 
 protected:
   std::unique_ptr<WhisperToken> _tokenizer;
   std::unique_ptr<Ort::Session> _speech_tokenizer_session;
+  std::unique_ptr<Ort::Env> _speech_tokenizer_env;
+  std::unique_ptr<Ort::Session> _campplus_session;
+  std::unique_ptr<Ort::Env> _campplus_env;
 };
 
 #endif

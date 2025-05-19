@@ -73,3 +73,6 @@
 [submodule "src/search/data/model"]
 	path = src/search/data/model
 	url = https://www.modelscope.cn/iic/CosyVoice-300M.git
+[submodule "src/3rd_party/kaldi/pkg"]
+	path = src/3rd_party/kaldi/pkg
+	url = https://github.com/csukuangfj/kaldi-native-fbank.git

@@ -255,9 +255,8 @@ std::vector<T> tensor_to_list_1d(torch::Tensor tensor) {
 	return std::vector<T>(data, data + tensor.numel());
 }
 
-TEST(Search, Frontend) {
-  const std::string speech_token_path = mycommon::str_format("./data/model/speech_tokenizer_v1.onnx");
-  Frontend frontend(speech_token_path);
+TEST(Search, FrontendStep) {
+  Frontend frontend("./data/model/speech_tokenizer_v1.onnx", "./data/model/campplus.onnx");
   {
     auto [text_token, text_token_len] = frontend.extract_text_token("主席说我开飞机的水平很高。");
   	ASSERT_EQ(2, text_token.dim());
@@ -378,6 +377,78 @@ TEST(Search, Frontend) {
     ASSERT_EQ(2130, speech_token_d0[950 - 1]);
   }
   LOG(INFO) << "Speech Token Time[" << (mycommon::getMilliTime() - time_start) << "]";
+
+  // kaldi fbank
+  auto fbank_tensor = kaldi_fbank(prompt_speech_16k_tensor);
+  {
+    LOG(INFO) << "FBank Dim[" << fbank_tensor.dim() << "]";
+    ASSERT_EQ(2, fbank_tensor.dim());
+    auto sizes = fbank_tensor.sizes();
+  	ASSERT_EQ(1898, sizes[0]);
+  	ASSERT_EQ(80, sizes[1]);
+    std::vector<float> fbank_tensor_d0 = tensor_to_list_1d<float>(fbank_tensor[0]);
+    //for (auto _ : fbank_tensor_d0) {
+    //  LOG(INFO) << _;
+    //}
+    ASSERT_EQ(true, std::fabs(fbank_tensor_d0[0] - -15.942384719848633) < 0.0001);
+    ASSERT_EQ(true, std::fabs(fbank_tensor_d0[80 - 1] - -14.228689193725586) < 0.0001);
+    std::vector<float> fbank_tensor_d1 = tensor_to_list_1d<float>(fbank_tensor[1898 - 1]);
+    ASSERT_EQ(true, std::fabs(fbank_tensor_d1[0] - -14.516310691833496) < 0.0001);
+    ASSERT_EQ(true, std::fabs(fbank_tensor_d1[80 - 1] - -14.715714454650879) < 0.0001);
+  }
+
+	// SPK Embedding
+  auto spk_embedding = frontend.extract_spk_embedding(prompt_speech_16k_tensor);
+	{
+    LOG(INFO) << "Embedding Dim[" << spk_embedding.dim() << "]";
+    ASSERT_EQ(2, spk_embedding.dim());
+    auto sizes = spk_embedding.sizes();
+  	ASSERT_EQ(1, sizes[0]);
+  	ASSERT_EQ(192, sizes[1]);
+    std::vector<float> spk_embedding_d0 = tensor_to_list_1d<float>(spk_embedding[0]);
+    ASSERT_EQ(true, std::fabs(spk_embedding_d0[0] - 0.7785695791244507) < 0.0001);
+    ASSERT_EQ(true, std::fabs(spk_embedding_d0[1] - -0.031358957290649414) < 0.0001);
+    ASSERT_EQ(true, std::fabs(spk_embedding_d0[192 - 2] - 0.186101496219635) < 0.0001);
+    ASSERT_EQ(true, std::fabs(spk_embedding_d0[192 - 1] - -0.4018286168575287) < 0.0001);
+  }
+}
+
+TEST(Search, Frontend) {
+  std::vector<float> prompt_speech_16k;
+  int channels = 0;
+  {
+    const std::string& path = "data/mda-qmwfy2k746929rxh.mp3";
+    std::string output_path = "out_" + Crypt::gen_random_string(8) + ".wav";
+    ConvertToWav(path, output_path);
+    int ret = LoadWav(output_path, 16000, prompt_speech_16k, channels);
+    ASSERT_EQ(ret, 0);
+    LOG(INFO) << "Len[" << prompt_speech_16k.size() << "]";
+    unlink(output_path.c_str());
+  }
+	LOG(INFO) << "Len[" << prompt_speech_16k.size() << "]";
+  
+  Frontend frontend("./data/model/speech_tokenizer_v1.onnx", "./data/model/campplus.onnx");
+  Frontend::ZeroShotInput result;
+  frontend.frontend_zero_shot(
+    "主席说我开飞机的水平很高。",
+    "二零二四年，我们一起走过春夏秋冬，一道经历风雨彩虹，一个个瞬间定格在这不平凡的一年，令人感慨、难以忘怀。",
+    prompt_speech_16k,
+    22050,
+    result
+    );
+	{
+    auto spk_embedding = result.embedding;
+    LOG(INFO) << "Embedding Dim[" << spk_embedding.dim() << "]";
+    ASSERT_EQ(2, spk_embedding.dim());
+    auto sizes = spk_embedding.sizes();
+  	ASSERT_EQ(1, sizes[0]);
+  	ASSERT_EQ(192, sizes[1]);
+    std::vector<float> spk_embedding_d0 = tensor_to_list_1d<float>(spk_embedding[0]);
+    ASSERT_EQ(true, std::fabs(spk_embedding_d0[0] - 0.7785695791244507) < 0.0001);
+    ASSERT_EQ(true, std::fabs(spk_embedding_d0[1] - -0.031358957290649414) < 0.0001);
+    ASSERT_EQ(true, std::fabs(spk_embedding_d0[192 - 2] - 0.186101496219635) < 0.0001);
+    ASSERT_EQ(true, std::fabs(spk_embedding_d0[192 - 1] - -0.4018286168575287) < 0.0001);
+  }
 }
 
 TEST(Search, Tensor) {

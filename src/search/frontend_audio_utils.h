@@ -43,6 +43,8 @@ torch::Tensor log_mel_spectrogram(
   std::optional<torch::Device> device = std::nullopt
   );
 
+torch::Tensor kaldi_fbank(torch::Tensor speech);
+
 #endif
 
 /* vim: set expandtab nu ts=2 sw=2 sts=2: */

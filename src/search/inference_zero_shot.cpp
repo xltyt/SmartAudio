@@ -19,7 +19,7 @@ InferenceZeroShot::InferenceZeroShot(const std::string& dir, bool is_fp16 /*= tr
   const std::string spk_path = mycommon::str_format("%s/spk2info.pt", dir.c_str());
   _sample_rate = 22050;
   LOG(INFO) << "InferenceZeroShot::InferenceZeroShot Init Frontend";
-  _frontend = std::make_unique<Frontend>(token_path);
+  _frontend = std::make_unique<Frontend>(token_path, campplus_path);
   LOG(INFO) << "InferenceZeroShot::InferenceZeroShot Init Token";
   _tokenizer = std::make_unique<WhisperToken>(".");
   LOG(INFO) << "InferenceZeroShot::InferenceZeroShot End";

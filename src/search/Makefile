@@ -191,6 +191,7 @@ TORCH_STATIC_LIB=\
 
 BASE_LIBS += $(THIRD_DIR)/../lib/libmycommon.a
 BASE_LIBS += \
+  -lkaldi-native-fbank-core -lkissfft-float \
   -L$(ONNX_ROOT)/lib -lonnxruntime \
   -L$(TORCH_ROOT)/lib -ltorch_cpu -ltorch -lc10 \
   $(CUDA_LIB) \

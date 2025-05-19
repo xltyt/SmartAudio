@@ -8,6 +8,8 @@
 #include "frontend_audio_utils.h"
 #include <fstream>
 #include <samplerate.h>
+#include <kaldi-native-fbank/csrc/online-feature.h>
+#include <kaldi-native-fbank/csrc/feature-fbank.h>
 #include <string_utils.h>
 
 #if 0
@@ -701,6 +703,43 @@ torch::Tensor log_mel_spectrogram(
   log_spec = (log_spec + 4.0) / 4.0;
 
   return log_spec;
+}
+
+torch::Tensor kaldi_fbank(torch::Tensor speech) {
+  // Convert Array, Shape: (num_samples,)
+  speech = speech.squeeze(0);
+  // Array
+  TORCH_CHECK(speech.dim() == 1, "Input speech must be 1D waveform");
+  auto speech_cpu = speech.contiguous().to(torch::kCPU);
+  const float* speech_data = speech_cpu.data_ptr<float>();
+  int64_t num_samples = speech_cpu.size(0);
+
+  // Fbank Option
+  knf::FbankOptions fbank_opts;
+  fbank_opts.mel_opts.num_bins = 80;
+  fbank_opts.frame_opts.samp_freq = 16000;
+  fbank_opts.frame_opts.dither = 0;
+  
+  knf::OnlineFbank fbank(fbank_opts);
+  fbank.AcceptWaveform(16000, speech_data, num_samples);
+  fbank.InputFinished();
+
+  int32_t num_frames = fbank.NumFramesReady();
+  int32_t num_bins = fbank_opts.mel_opts.num_bins;
+  TORCH_CHECK(num_frames > 0, "No frames computed from speech");
+        
+  std::vector<float> feat_vec(num_frames * num_bins);
+  for (int32_t i = 0; i < num_frames; ++i) {
+    const float* frame = fbank.GetFrame(i);
+    std::copy(frame, frame + num_bins, feat_vec.begin() + i * num_bins);
+  }
+  
+  //auto feat_vec_tensor = torch::zeros({1, (int)feat_vec.size()}, torch::kFloat32);
+  //for (int i = 0; i < (int)feat_vec.size(); ++i) {
+  //  feat_vec_tensor[0][i] = feat_vec[i];
+  //}
+  //return feat_vec_tensor;
+  return torch::from_blob(feat_vec.data(), {num_frames, num_bins}, torch::kFloat32).clone();
 }
 
 /* vim: set expandtab nu ts=2 sw=2 sts=2: */

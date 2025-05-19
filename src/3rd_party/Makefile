@@ -31,6 +31,7 @@ prep:
 	@if [ ! -f ../../$(PLATFORM)/local/include/sndfile.h ]; then          cd audio && PLATFORM=$(PLATFORM) bash build.sh; fi
 	@if [ ! -d ../../$(PLATFORM)/local/include/eigen3 ]; then             cd eigen && PLATFORM=$(PLATFORM) bash build.sh; fi
 	@if [ ! -d ../../$(PLATFORM)/local/onnx/cpu/include ]; then           cd onnx && PLATFORM=$(PLATFORM) bash build.sh; fi
+	@if [ ! -d ../../$(PLATFORM)/local/include/kaldi-native-fbank ]; then cd kaldi && PLATFORM=$(PLATFORM) bash build.sh; fi
 	##@rm -rf ../../build
 
 clean:
