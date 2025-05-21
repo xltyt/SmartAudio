@@ -232,6 +232,7 @@ CPPFLAGS  = $(CFLAGS) -std=c++17
 CXXFLAGS  = $(CFLAGS) -std=c++17
 
 SOURCES += \
+  v1/model.cpp \
   frontend_utils.cpp \
   frontend_audio_utils.cpp \
   inference_zero_shot.cpp \
@@ -267,6 +268,7 @@ test: \
 
 $(TEST_DIR)/test_search : \
 	$(OBJS_DIR)/test_search.o \
+	$(OBJS_DIR)/v1/model.o \
 	$(OBJS_DIR)/tiktoken.o \
 	$(OBJS_DIR)/core_bpe.o \
 	$(OBJS_DIR)/whisper_token.o \

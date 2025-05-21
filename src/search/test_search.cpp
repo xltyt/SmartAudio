@@ -18,6 +18,7 @@
 #include "frontend_utils.h"
 #include "frontend_audio_utils.h"
 #include "inference_zero_shot.h"
+#include "v1/model.h"
 
 TEST(Search, Utf8) {
   {
@@ -475,6 +476,47 @@ TEST(Search, Infer) {
   const std::string& tts_text = "主席说我开飞机的水平很高";
   const std::string& prompt_text = "2024年，我们一起走过春夏秋冬，一道经历风雨彩虹，一个个瞬间定格在这不平凡的一年，令人感慨、难以忘怀。";
   infer.inference_zero_shot(tts_text, prompt_text, prompt_speech_16k);
+}
+
+TEST(Search, Model) {
+  std::vector<float> prompt_speech_16k;
+  int channels = 0;
+  {
+    const std::string& path = "data/mda-qmwfy2k746929rxh.mp3";
+    std::string output_path = "out_" + Crypt::gen_random_string(8) + ".wav";
+    ConvertToWav(path, output_path);
+    int ret = LoadWav(output_path, 16000, prompt_speech_16k, channels);
+    ASSERT_EQ(ret, 0);
+    LOG(INFO) << "Len[" << prompt_speech_16k.size() << "]";
+    unlink(output_path.c_str());
+  }
+  Frontend frontend("./data/model/speech_tokenizer_v1.onnx", "./data/model/campplus.onnx");
+  Frontend::ZeroShotInput result;
+  frontend.frontend_zero_shot(
+    "主席说我开飞机的水平很高。",
+    "二零二四年，我们一起走过春夏秋冬，一道经历风雨彩虹，一个个瞬间定格在这不平凡的一年，令人感慨、难以忘怀。",
+    prompt_speech_16k,
+    22050,
+    result
+    );
+
+  //std::string llm_model_path = "./data/model/llm.llm.fp16.zip";
+  //std::string llm_model_path = "./data/model/llm.jit.fp16.pt";
+  std::string llm_model_path = "./data/model/llm.jit.fp32.pt";
+  VoiceModel model;
+  model.load(llm_model_path);
+  LOG(INFO) << "TTS Start";
+  int ret = model.tts(
+    result.text,
+    result.text_len,
+    result.prompt_text,
+    result.prompt_text_len,
+    result.prompt_speech_token,
+    result.prompt_speech_token_len,
+    result.embedding
+    );
+  LOG(INFO) << "TTS End";
+  ASSERT_EQ(0, ret);
 }
 
 int main(int argc, char *argv[]) {
