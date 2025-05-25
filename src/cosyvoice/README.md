@@ -10,3 +10,7 @@ matcha.patch，路径: pkg/third_party/Matcha-TTS
 代码Patch: flow.patch, 路径: pkg
 转换脚本: model_flow_jit.py
 
+Hift模型
+先进行权重融合然后再Patch&转换: model_hift_pt.py
+代码Patch: hift.patch, 路径: pkg
+转换脚本: model_hift_jit.py

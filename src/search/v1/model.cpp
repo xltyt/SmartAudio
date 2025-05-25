@@ -13,9 +13,10 @@ VoiceModel::VoiceModel() {
 VoiceModel::~VoiceModel() {
   _llm.reset();
   _flow.reset();
+  _hift.reset();
 }
   
-int VoiceModel::load(const std::string& llm_model_path, const std::string& flow_model_path) {
+int VoiceModel::load(const std::string& llm_model_path, const std::string& flow_model_path, const std::string& hift_model_path) {
   LOG(INFO) << "VoiceModel::load LLM Init";
   torch::autograd::GradMode::set_enabled(false);
   {
@@ -40,6 +41,15 @@ int VoiceModel::load(const std::string& llm_model_path, const std::string& flow_
     _flow_cache_dict = torch::zeros({1, 80, 0, 2}, torch::kFloat32);
   }
   LOG(INFO) << "VoiceModel::load Flow End";
+
+  LOG(INFO) << "VoiceModel::load Hift Init";
+  {
+    torch::jit::script::Module hift = torch::jit::load(hift_model_path, torch::kCPU);
+    _hift = std::make_unique<torch::jit::script::Module>(hift);
+    _hift->eval();
+    _hift_cache_source = torch::zeros({1, 1, 0}, torch::kFloat32);
+  }
+  LOG(INFO) << "VoiceModel::load Hift End";
   
   return 0;
 }
@@ -95,6 +105,20 @@ int VoiceModel::infer_flow(
   tts_mel = output_elements[0].toTensor();
   _flow_cache_dict = output_elements[1].toTensor();
   return 0;
+}
+
+int VoiceModel::infer_hift(
+	const torch::Tensor& speech_feat,
+	torch::Tensor& tts_speech,
+	torch::Tensor& tts_source
+  ) {
+	std::vector<torch::jit::IValue> inputs;
+  inputs.push_back(speech_feat.detach());
+  inputs.push_back(_hift_cache_source.detach());
+  auto output_elements = _hift->get_method("inference")(inputs).toTuple()->elements();
+  tts_speech = output_elements[0].toTensor();
+  _flow_cache_dict = output_elements[1].toTensor();
+	return 0;
 }
 
 /* vim: set expandtab nu ts=2 sw=2 sts=2: */

@@ -19,7 +19,7 @@ public:
   virtual ~VoiceModel();
 
 public:
-  int load(const std::string& llm_model_path, const std::string& flow_model_path);
+  int load(const std::string& llm_model_path, const std::string& flow_model_path, const std::string& hift_model_path);
   int tts(
     const torch::Tensor& text,
     const torch::Tensor& text_len,
@@ -39,11 +39,18 @@ public:
 		float speed,
 		torch::Tensor& tts_mel
 	);
+  int infer_hift(
+		const torch::Tensor& speech_feat,
+		torch::Tensor& tts_speech,
+		torch::Tensor& tts_source
+    );
 
 protected:
   std::unique_ptr<torch::jit::script::Module> _llm;
   std::unique_ptr<torch::jit::script::Module> _flow;
+  std::unique_ptr<torch::jit::script::Module> _hift;
   torch::Tensor _flow_cache_dict;
+  torch::Tensor _hift_cache_source;
 };
 
 #endif

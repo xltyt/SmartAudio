@@ -84,4 +84,25 @@ int LoadWav(const std::string& path, int target_sr, std::vector<float>& result, 
   return -1;
 }
 
+int SaveWav(const std::string& path, int target_sr, const std::vector<float>& data, int channels) {
+  SF_INFO sfinfo;
+    
+  sfinfo.samplerate = target_sr;
+  sfinfo.channels = channels;
+  sfinfo.format = SF_FORMAT_WAV | /*SF_FORMAT_PCM_16*/SF_FORMAT_FLOAT;
+
+  SNDFILE* outfile = sf_open(path.c_str(), SFM_WRITE, &sfinfo);
+  if (!outfile) {
+    return -1;
+  }
+
+  sf_count_t frames_written = sf_writef_float(outfile, data.data(), data.size() / channels);
+  if (frames_written != (sf_count_t)(data.size() / channels)) {
+    sf_close(outfile);
+    return -1;
+  }
+  sf_close(outfile);
+  return 0;
+}
+
 /* vim: set expandtab nu ts=2 sw=2 sts=2: */

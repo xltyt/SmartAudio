@@ -160,6 +160,10 @@ TEST(Search, Wav) {
   LOG(INFO) << "Len[" << result.size() << "]";
   unlink(output_path.c_str());
   mycommon::file_write("data.txt", mycommon::str_join(result, "\n"));
+  // Save
+  ret = SaveWav("/tmp/test_save.wav", 16000, result, channels);
+  ASSERT_EQ(ret, 0);
+  LOG(INFO) << "Save Success";
 }
 
 TEST(Search, FrontendUtils) {
@@ -502,8 +506,9 @@ TEST(Search, LLM) {
 
   std::string llm_model_path = "../../model/llm.fp32.jit";
   std::string flow_model_path = "../../model/flow.fp32.jit";
+  std::string hift_model_path = "../../model/hift.fp32.jit";
   VoiceModel model;
-  model.load(llm_model_path, flow_model_path);
+  model.load(llm_model_path, flow_model_path, hift_model_path);
   LOG(INFO) << "TTS Start";
   int ret = model.tts(
     result.text,
@@ -542,8 +547,9 @@ TEST(Search, Flow) {
 
   std::string llm_model_path = "../../model/llm.fp32.jit";
   std::string flow_model_path = "../../model/flow.fp32.jit";
+  std::string hift_model_path = "../../model/hift.fp32.jit";
   VoiceModel model;
-  model.load(llm_model_path, flow_model_path);
+  model.load(llm_model_path, flow_model_path, hift_model_path);
   LOG(INFO) << "Flow Start";
   std::vector<int> ids = std::vector<int>({149, 1035, 659, 40, 191, 66, 615, 331, 331, 331, 696, 696, 669, 707, 450, 452, 498, 277, 295, 74, 154, 716, 1942, 3254, 42, 392, 380, 172, 557, 175, 286, 594, 187, 2712, 650, 706, 595, 74, 92, 51, 889, 2185, 4022, 4022, 1006, 668, 1035, 1035, 2130, 26, 615, 191, 191, 191, 66, 222, 670, 66, 657, 1191, 436, 578, 611, 615, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 331, 331, 66, 331, 66, 66, 66, 66, 615, 66, 66, 615, 331, 708, 982, 3132, 120, 120, 415, 21, 51, 649, 312, 209, 34, 42, 733, 558, 237, 553, 488, 539, 507, 514, 514, 2579, 537, 533, 2712, 544, 98, 3966, 11, 259, 585, 629, 629, 235, 1059, 203, 648, 681, 1307, 3605, 100, 1228, 67, 1923, 1938, 374, 702, 2712, 124, 544, 392, 546, 621, 167, 399, 56, 56, 750, 42, 723, 77, 125, 407, 574, 114, 304, 24, 433, 552, 533, 434, 653, 562, 166, 523, 477, 120, 192, 482, 302, 2330, 158, 4022, 550, 444, 889, 889, 535, 149, 2130, 2130, 360, 431, 40, 615, 615, 327, 615, 615, 611, 611, 611, 327, 611, 611, 611, 611, 191, 66, 191, 615, 615, 615, 615, 610});
   torch::Tensor tts_mel;
@@ -573,6 +579,74 @@ TEST(Search, Flow) {
     ASSERT_EQ(true, std::fabs(tts_mel_1[0] - -9.227993965148926) < 0.0001);
     ASSERT_EQ(true, std::fabs(tts_mel_1[373 - 1] - -11.43716812133789) < 0.0001);
   }
+}
+
+TEST(Search, Hift) {
+  std::vector<float> prompt_speech_16k;
+  int channels = 0;
+  {
+    const std::string& path = "data/mda-qmwfy2k746929rxh.mp3";
+    std::string output_path = "out_" + Crypt::gen_random_string(8) + ".wav";
+    ConvertToWav(path, output_path);
+    int ret = LoadWav(output_path, 16000, prompt_speech_16k, channels);
+    ASSERT_EQ(ret, 0);
+    LOG(INFO) << "Len[" << prompt_speech_16k.size() << "]";
+    unlink(output_path.c_str());
+  }
+  Frontend frontend("./data/model/speech_tokenizer_v1.onnx", "./data/model/campplus.onnx");
+  Frontend::ZeroShotInput result;
+  frontend.frontend_zero_shot(
+    "主席说我开飞机的水平很高。",
+    "二零二四年，我们一起走过春夏秋冬，一道经历风雨彩虹，一个个瞬间定格在这不平凡的一年，令人感慨、难以忘怀。",
+    prompt_speech_16k,
+    22050,
+    result
+    );
+
+  std::string llm_model_path = "../../model/llm.fp32.jit";
+  std::string flow_model_path = "../../model/flow.fp32.jit";
+  std::string hift_model_path = "../../model/hift.fp32.jit";
+  VoiceModel model;
+  model.load(llm_model_path, flow_model_path, hift_model_path);
+  LOG(INFO) << "Hift Start";
+  std::vector<int> ids = std::vector<int>({149, 1035, 659, 40, 191, 66, 615, 331, 331, 331, 696, 696, 669, 707, 450, 452, 498, 277, 295, 74, 154, 716, 1942, 3254, 42, 392, 380, 172, 557, 175, 286, 594, 187, 2712, 650, 706, 595, 74, 92, 51, 889, 2185, 4022, 4022, 1006, 668, 1035, 1035, 2130, 26, 615, 191, 191, 191, 66, 222, 670, 66, 657, 1191, 436, 578, 611, 615, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 331, 331, 66, 331, 66, 66, 66, 66, 615, 66, 66, 615, 331, 708, 982, 3132, 120, 120, 415, 21, 51, 649, 312, 209, 34, 42, 733, 558, 237, 553, 488, 539, 507, 514, 514, 2579, 537, 533, 2712, 544, 98, 3966, 11, 259, 585, 629, 629, 235, 1059, 203, 648, 681, 1307, 3605, 100, 1228, 67, 1923, 1938, 374, 702, 2712, 124, 544, 392, 546, 621, 167, 399, 56, 56, 750, 42, 723, 77, 125, 407, 574, 114, 304, 24, 433, 552, 533, 434, 653, 562, 166, 523, 477, 120, 192, 482, 302, 2330, 158, 4022, 550, 444, 889, 889, 535, 149, 2130, 2130, 360, 431, 40, 615, 615, 327, 615, 615, 611, 611, 611, 327, 611, 611, 611, 611, 191, 66, 191, 615, 615, 615, 615, 610});
+  torch::Tensor tts_mel;
+  int ret = model.infer_flow(
+		torch::tensor(ids, torch::kInt32),
+		result.prompt_speech_token,
+		result.prompt_speech_feat,
+		result.embedding,
+		1.0,
+    tts_mel
+	);
+  ASSERT_EQ(0, ret);
+  //int token_overlap_len = 20;
+  //int input_frame_rate = 50;
+  //int mel_overlap_len = (int)(token_overlap_len / (float)input_frame_rate * 22050 / 256);
+  //tts_mel = tts_mel[:, :, :-mel_overlap_len];
+  torch::Tensor tts_speech;
+	torch::Tensor tts_source;
+  ret = model.infer_hift(
+		tts_mel,
+		tts_speech,
+		tts_source
+    );
+  ASSERT_EQ(0, ret);
+  LOG(INFO) << "Dim[" << tts_speech.dim() << "]";
+  for (auto _ : tts_speech.sizes()) {
+    LOG(INFO) << _;
+  }
+  ASSERT_EQ(2, tts_speech.dim());
+  ASSERT_EQ(1, tts_speech.sizes()[0]);
+  ASSERT_EQ(95488, tts_speech.sizes()[1]);
+  std::vector<float> tts_speech_0 = tensor_to_list_1d<float>(tts_speech[0]);
+  for (auto _ : tts_speech_0) {
+    LOG(INFO) << _;
+  }
+  ret = SaveWav("/tmp/hift_output.wav", 16000, tts_speech_0, 1);
+  ASSERT_EQ(0, ret);
+  LOG(INFO) << "Save Success";
+  LOG(INFO) << "Hift End";
 }
 
 int main(int argc, char *argv[]) {

@@ -1,0 +1,380 @@
+diff --git a/cosyvoice/hifigan/f0_predictor.py b/cosyvoice/hifigan/f0_predictor.py
+index 5797c31..05b6f56 100644
+--- a/cosyvoice/hifigan/f0_predictor.py
++++ b/cosyvoice/hifigan/f0_predictor.py
+@@ -13,10 +13,6 @@
+ # limitations under the License.
+ import torch
+ import torch.nn as nn
+-try:
+-    from torch.nn.utils.parametrizations import weight_norm
+-except ImportError:
+-    from torch.nn.utils import weight_norm
+ 
+ 
+ class ConvRNNF0Predictor(nn.Module):
+@@ -29,25 +25,15 @@ class ConvRNNF0Predictor(nn.Module):
+ 
+         self.num_class = num_class
+         self.condnet = nn.Sequential(
+-            weight_norm(
+-                nn.Conv1d(in_channels, cond_channels, kernel_size=3, padding=1)
+-            ),
++            nn.Conv1d(in_channels, cond_channels, kernel_size=3, padding=1),
+             nn.ELU(),
+-            weight_norm(
+-                nn.Conv1d(cond_channels, cond_channels, kernel_size=3, padding=1)
+-            ),
++            nn.Conv1d(cond_channels, cond_channels, kernel_size=3, padding=1),
+             nn.ELU(),
+-            weight_norm(
+-                nn.Conv1d(cond_channels, cond_channels, kernel_size=3, padding=1)
+-            ),
++            nn.Conv1d(cond_channels, cond_channels, kernel_size=3, padding=1),
+             nn.ELU(),
+-            weight_norm(
+-                nn.Conv1d(cond_channels, cond_channels, kernel_size=3, padding=1)
+-            ),
++            nn.Conv1d(cond_channels, cond_channels, kernel_size=3, padding=1),
+             nn.ELU(),
+-            weight_norm(
+-                nn.Conv1d(cond_channels, cond_channels, kernel_size=3, padding=1)
+-            ),
++            nn.Conv1d(cond_channels, cond_channels, kernel_size=3, padding=1),
+             nn.ELU(),
+         )
+         self.classifier = nn.Linear(in_features=cond_channels, out_features=self.num_class)
+diff --git a/cosyvoice/hifigan/generator.py b/cosyvoice/hifigan/generator.py
+index 326a1a7..f2d9ea6 100644
+--- a/cosyvoice/hifigan/generator.py
++++ b/cosyvoice/hifigan/generator.py
+@@ -14,20 +14,13 @@
+ 
+ """HIFI-GAN"""
+ 
+-from typing import Dict, Optional, List
+-import numpy as np
+-from scipy.signal import get_window
++from typing import Dict, Optional, List, Tuple
+ import torch
+ import torch.nn as nn
+ import torch.nn.functional as F
+ from torch.nn import Conv1d
+ from torch.nn import ConvTranspose1d
+ from torch.nn.utils import remove_weight_norm
+-try:
+-    from torch.nn.utils.parametrizations import weight_norm
+-except ImportError:
+-    from torch.nn.utils import weight_norm
+-from torch.distributions.uniform import Uniform
+ 
+ from cosyvoice.transformer.activation import Snake
+ from cosyvoice.utils.common import get_padding
+@@ -57,46 +50,44 @@ class ResBlock(torch.nn.Module):
+ 
+         for dilation in dilations:
+             self.convs1.append(
+-                weight_norm(
+-                    Conv1d(
+-                        channels,
+-                        channels,
+-                        kernel_size,
+-                        1,
+-                        dilation=dilation,
+-                        padding=get_padding(kernel_size, dilation)
+-                    )
++                Conv1d(
++                    channels,
++                    channels,
++                    kernel_size,
++                    1,
++                    dilation=dilation,
++                    padding=get_padding(kernel_size, dilation)
+                 )
+             )
+             self.convs2.append(
+-                weight_norm(
+-                    Conv1d(
+-                        channels,
+-                        channels,
+-                        kernel_size,
+-                        1,
+-                        dilation=1,
+-                        padding=get_padding(kernel_size, 1)
+-                    )
++                Conv1d(
++                    channels,
++                    channels,
++                    kernel_size,
++                    1,
++                    dilation=1,
++                    padding=get_padding(kernel_size, 1)
+                 )
+             )
+         self.convs1.apply(init_weights)
+         self.convs2.apply(init_weights)
+         self.activations1 = nn.ModuleList([
+-            Snake(channels, alpha_logscale=False)
++            Snake(channels, alpha_trainable=False, alpha_logscale=False)
+             for _ in range(len(self.convs1))
+         ])
+         self.activations2 = nn.ModuleList([
+-            Snake(channels, alpha_logscale=False)
++            Snake(channels, alpha_trainable=False, alpha_logscale=False)
+             for _ in range(len(self.convs2))
+         ])
+ 
+     def forward(self, x: torch.Tensor) -> torch.Tensor:
+-        for idx in range(len(self.convs1)):
+-            xt = self.activations1[idx](x)
+-            xt = self.convs1[idx](xt)
+-            xt = self.activations2[idx](xt)
+-            xt = self.convs2[idx](xt)
++        #print(f"ResBlock x {x}")
++        #print(f"ResBlock x_shape {x.shape}")
++        for act1, conv1, act2, conv2 in zip(self.activations1, self.convs1, self.activations2, self.convs2):
++            xt = act1(x)
++            xt = conv1(xt)
++            xt = act2(xt)
++            xt = conv2(xt)
+             x = xt + x
+         return x
+ 
+@@ -119,7 +110,7 @@ class SineGen(torch.nn.Module):
+     voiced_thoreshold: F0 threshold for U/V classification (default 0)
+     flag_for_pulse: this SinGen is used inside PulseGen (default False)
+     Note: when flag_for_pulse is True, the first time step of a voiced
+-        segment is always sin(np.pi) or cos(0)
++        segment is always sin(torch.pi) or cos(0)
+     """
+ 
+     def __init__(self, samp_rate, harmonic_num=0,
+@@ -137,8 +128,8 @@ class SineGen(torch.nn.Module):
+         uv = (f0 > self.voiced_threshold).type(torch.float32)
+         return uv
+ 
+-    @torch.no_grad()
+-    def forward(self, f0):
++    #@torch.no_grad()
++    def forward(self, f0) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+         """
+         :param f0: [B, 1, sample_len], Hz
+         :return: [B, 1, sample_len]
+@@ -148,9 +139,14 @@ class SineGen(torch.nn.Module):
+         for i in range(self.harmonic_num + 1):
+             F_mat[:, i: i + 1, :] = f0 * (i + 1) / self.sampling_rate
+ 
+-        theta_mat = 2 * np.pi * (torch.cumsum(F_mat, dim=-1) % 1)
+-        u_dist = Uniform(low=-np.pi, high=np.pi)
+-        phase_vec = u_dist.sample(sample_shape=(f0.size(0), self.harmonic_num + 1, 1)).to(F_mat.device)
++        theta_mat = 2 * torch.pi * (torch.cumsum(F_mat, dim=-1) % 1)
++        #u_dist = Uniform(low=-torch.pi, high=torch.pi)
++        #phase_vec = u_dist.sample(sample_shape=(f0.size(0), self.harmonic_num + 1, 1)).to(F_mat.device)
++        low = -torch.pi
++        high = torch.pi
++        sample_shape = (f0.size(0), self.harmonic_num + 1, 1)
++        phase_vec = low + (high - low) * torch.rand(sample_shape, device=F_mat.device, dtype=F_mat.dtype)
++
+         phase_vec[:, 0, :] = 0
+ 
+         # generate sine waveforms
+@@ -236,7 +232,7 @@ class SineGen2(torch.nn.Module):
+     voiced_thoreshold: F0 threshold for U/V classification (default 0)
+     flag_for_pulse: this SinGen is used inside PulseGen (default False)
+     Note: when flag_for_pulse is True, the first time step of a voiced
+-        segment is always sin(np.pi) or cos(0)
++        segment is always sin(torch.pi) or cos(0)
+     """
+ 
+     def __init__(self, samp_rate, upsample_scale, harmonic_num=0,
+@@ -263,7 +259,7 @@ class SineGen2(torch.nn.Module):
+             where dim indicates fundamental tone and overtones
+         """
+         # convert to F0 in rad. The interger part n can be ignored
+-        # because 2 * np.pi * n doesn't affect phase
++        # because 2 * torch.pi * n doesn't affect phase
+         rad_values = (f0_values / self.sampling_rate) % 1
+ 
+         # initial phase noise (no noise for fundamental component)
+@@ -277,7 +273,7 @@ class SineGen2(torch.nn.Module):
+                                                          scale_factor=1 / self.upsample_scale,
+                                                          mode="linear").transpose(1, 2)
+ 
+-            phase = torch.cumsum(rad_values, dim=1) * 2 * np.pi
++            phase = torch.cumsum(rad_values, dim=1) * 2 * torch.pi
+             phase = torch.nn.functional.interpolate(phase.transpose(1, 2) * self.upsample_scale,
+                                                     scale_factor=self.upsample_scale, mode="linear").transpose(1, 2)
+             sines = torch.sin(phase)
+@@ -308,7 +304,7 @@ class SineGen2(torch.nn.Module):
+             i_phase = torch.cumsum(rad_values - tmp_cumsum, dim=1)
+ 
+             # get the sines
+-            sines = torch.cos(i_phase * 2 * np.pi)
++            sines = torch.cos(i_phase * 2 * torch.pi)
+         return sines
+ 
+     def forward(self, f0):
+@@ -429,29 +425,25 @@ class HiFTGenerator(nn.Module):
+         this_SourceModuleHnNSF = SourceModuleHnNSF if self.sampling_rate == 22050 else SourceModuleHnNSF2
+         self.m_source = this_SourceModuleHnNSF(
+             sampling_rate=sampling_rate,
+-            upsample_scale=np.prod(upsample_rates) * istft_params["hop_len"],
++            upsample_scale=torch.prod(torch.tensor(upsample_rates)).item() * istft_params["hop_len"],
+             harmonic_num=nb_harmonics,
+             sine_amp=nsf_alpha,
+             add_noise_std=nsf_sigma,
+             voiced_threshod=nsf_voiced_threshold)
+-        self.f0_upsamp = torch.nn.Upsample(scale_factor=np.prod(upsample_rates) * istft_params["hop_len"])
++        self.f0_upsamp = torch.nn.Upsample(scale_factor=torch.prod(torch.tensor(upsample_rates)).item() * istft_params["hop_len"])
+ 
+-        self.conv_pre = weight_norm(
+-            Conv1d(in_channels, base_channels, 7, 1, padding=3)
+-        )
++        self.conv_pre = Conv1d(in_channels, base_channels, 7, 1, padding=3)
+ 
+         # Up
+         self.ups = nn.ModuleList()
+         for i, (u, k) in enumerate(zip(upsample_rates, upsample_kernel_sizes)):
+             self.ups.append(
+-                weight_norm(
+-                    ConvTranspose1d(
+-                        base_channels // (2**i),
+-                        base_channels // (2**(i + 1)),
+-                        k,
+-                        u,
+-                        padding=(k - u) // 2,
+-                    )
++                ConvTranspose1d(
++                    base_channels // (2**i),
++                    base_channels // (2**(i + 1)),
++                    k,
++                    u,
++                    padding=(k - u) // 2,
+                 )
+             )
+ 
+@@ -459,7 +451,7 @@ class HiFTGenerator(nn.Module):
+         self.source_downs = nn.ModuleList()
+         self.source_resblocks = nn.ModuleList()
+         downsample_rates = [1] + upsample_rates[::-1][:-1]
+-        downsample_cum_rates = np.cumprod(downsample_rates)
++        downsample_cum_rates = torch.cumprod(torch.tensor(downsample_rates), dim=0).tolist()
+         for i, (u, k, d) in enumerate(zip(downsample_cum_rates[::-1], source_resblock_kernel_sizes, source_resblock_dilation_sizes)):
+             if u == 1:
+                 self.source_downs.append(
+@@ -480,11 +472,11 @@ class HiFTGenerator(nn.Module):
+             for _, (k, d) in enumerate(zip(resblock_kernel_sizes, resblock_dilation_sizes)):
+                 self.resblocks.append(ResBlock(ch, k, d))
+ 
+-        self.conv_post = weight_norm(Conv1d(ch, istft_params["n_fft"] + 2, 7, 1, padding=3))
++        self.conv_post = Conv1d(ch, istft_params["n_fft"] + 2, 7, 1, padding=3)
+         self.ups.apply(init_weights)
+         self.conv_post.apply(init_weights)
+         self.reflection_pad = nn.ReflectionPad1d((1, 0))
+-        self.stft_window = torch.from_numpy(get_window("hann", istft_params["n_fft"], fftbins=True).astype(np.float32))
++        self.stft_window = torch.hann_window(istft_params["n_fft"], periodic=True)
+         self.f0_predictor = f0_predictor
+ 
+     def remove_weight_norm(self):
+@@ -522,25 +514,39 @@ class HiFTGenerator(nn.Module):
+         s_stft = torch.cat([s_stft_real, s_stft_imag], dim=1)
+ 
+         x = self.conv_pre(x)
+-        for i in range(self.num_upsamples):
++        #print("decode 1")
++        for i, (ups_i, source_downs_i, source_resblocks_i) in enumerate(zip(self.ups, self.source_downs, self.source_resblocks)):
++            #print(f"decode source {i}")
+             x = F.leaky_relu(x, self.lrelu_slope)
+-            x = self.ups[i](x)
++            x = ups_i(x)
+ 
+             if i == self.num_upsamples - 1:
+                 x = self.reflection_pad(x)
+ 
+             # fusion
+-            si = self.source_downs[i](s_stft)
+-            si = self.source_resblocks[i](si)
++            si = source_downs_i(s_stft)
++            #print(f"decode source res {si.shape}")
++            si = source_resblocks_i(si)
+             x = x + si
+ 
+-            xs = None
+-            for j in range(self.num_kernels):
+-                if xs is None:
+-                    xs = self.resblocks[i * self.num_kernels + j](x)
+-                else:
+-                    xs += self.resblocks[i * self.num_kernels + j](x)
++            xs = torch.empty(0)
++            #for j in range(self.num_kernels):
++            #    if xs is None:
++            #        xs = self.resblocks[i * self.num_kernels + j](x)
++            #    else:
++            #        xs += self.resblocks[i * self.num_kernels + j](x)
++            ct = 0
++            #print(f"decode source x {x.shape}")
++            for j, resblocks_i in enumerate(self.resblocks):
++                if ct >= i * self.num_kernels and ct < i * self.num_kernels + self.num_kernels:
++                    if xs.numel() == 0:
++                        xs = resblocks_i(x)
++                    else:
++                        xs += resblocks_i(x)
++                ct += 1
+             x = xs / self.num_kernels
++            #print("decode source end")
++        #print("decode OK")
+ 
+         x = F.leaky_relu(x)
+         x = self.conv_post(x)
+@@ -553,9 +559,9 @@ class HiFTGenerator(nn.Module):
+ 
+     def forward(
+             self,
+-            batch: dict,
++            batch: Dict[str, torch.Tensor],
+             device: torch.device,
+-    ) -> Dict[str, Optional[torch.Tensor]]:
++    ) -> Tuple[torch.Tensor, torch.Tensor]:
+         speech_feat = batch['speech_feat'].transpose(1, 2).to(device)
+         # mel->f0
+         f0 = self.f0_predictor(speech_feat)
+@@ -567,16 +573,24 @@ class HiFTGenerator(nn.Module):
+         generated_speech = self.decode(x=speech_feat, s=s)
+         return generated_speech, f0
+ 
+-    @torch.inference_mode()
+-    def inference(self, speech_feat: torch.Tensor, cache_source: torch.Tensor = torch.zeros(1, 1, 0)) -> torch.Tensor:
++    #@torch.inference_mode()
++    @torch.jit.export
++    def inference(self, speech_feat: torch.Tensor, cache_source: torch.Tensor = torch.zeros(1, 1, 0)) -> Tuple[torch.Tensor, torch.Tensor]:
++        #print("inference 1")
+         # mel->f0
+         f0 = self.f0_predictor(speech_feat)
++        #print("inference 2")
+         # f0->source
+         s = self.f0_upsamp(f0[:, None]).transpose(1, 2)  # bs,n,t
++        #print("inference 3")
+         s, _, _ = self.m_source(s)
++        #print("inference 4")
+         s = s.transpose(1, 2)
+         # use cache_source to avoid glitch
++        #print("inference 5")
+         if cache_source.shape[2] != 0:
+             s[:, :, :cache_source.shape[2]] = cache_source
++        #print("inference decode start")
+         generated_speech = self.decode(x=speech_feat, s=s)
++        #print("inference decode end")
+         return generated_speech, s
+diff --git a/cosyvoice/transformer/activation.py b/cosyvoice/transformer/activation.py
+index 8cea548..c3e6333 100644
+--- a/cosyvoice/transformer/activation.py
++++ b/cosyvoice/transformer/activation.py
+@@ -79,6 +79,8 @@ class Snake(nn.Module):
+         alpha = self.alpha.unsqueeze(0).unsqueeze(-1)  # line up with x to [B, C, T]
+         if self.alpha_logscale:
+             alpha = torch.exp(alpha)
++        #print(f"Snake alpha {alpha}")
++        #print(f"Snake alpha_shape {alpha.shape}")
+         x = x + (1.0 / (alpha + self.no_div_by_zero)) * pow(sin(x * alpha), 2)
+ 
+         return x

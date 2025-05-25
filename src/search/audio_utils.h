@@ -14,6 +14,7 @@
 int ConvertToWav(const std::string& path, const std::string& output_path);
 int GetWavInfo(const std::string& path, int& nchannels, int& sampwidth, int& framerate, int& nframes, int& duration);
 int LoadWav(const std::string& path, int target_sr, std::vector<float>& result, int& channels);
+int SaveWav(const std::string& path, int target_sr, const std::vector<float>& data, int channels);
 
 #endif
 
