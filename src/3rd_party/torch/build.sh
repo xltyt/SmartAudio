@@ -112,39 +112,70 @@ if [ ! -d $DST/torch/cpu/lib ]; then
   rm -rf build_cpu
 fi
 
-#CUDA_VERSIONS=(12.2)
-#for CUDA_VERSION in "${CUDA_VERSIONS[@]}"; do
-#  if [ ! -d $DST/torch/gpu/${CUDA_VERSION}/lib ]; then
-#    mkdir -p build
-#    cd build
-#    #CUDA_HOST_COMPILER=cc
-#    PYTHON_EXECUTABLE=/usr/bin/python3 \
-#    LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64:/usr/local/lib:$LD_LIBRARY_PATH \
-#    PATH=/usr/local/cuda-${CUDA_VERSION}/bin:$PATH \
-#    CUDA_BIN_PATH=/usr/local/cuda-${CUDA_VERSION}/bin \
-#    CUDA_HOME=/usr/local/cuda-${CUDA_VERSION}/ \
-#    CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-${CUDA_VERSION}/ \
-#    CUDNN_LIB_DIR=/usr/local/cuda-${CUDA_VERSION}/lib64 \
-#    USE_CUDA=True \
-#    BUILD_TEST=False \
-#    TORCH_CUDA_ARCH_LIST="7.0 7.2 7.5 8.0 8.6 8.7 8.9 9.0 9.0a" \
-#    TORCH_NVCC_FLAGS="-Xfatbin -compress-all" \
-#    USE_SYSTEM_NCCL=False \
-#    USE_NCCL=False \
-#    BUILD_ONNX_PYTHON=False \
-#    BUILD_SHARED_LIBS=True \
-#    MAX_JOBS=2 \
-#    python3 ../tools/build_libtorch.py
-#    rm -rf $DST/torch/gpu/${CUDA_VERSION}
-#    mkdir -p $DST/torch/gpu/${CUDA_VERSION}/lib
-#    cp -r ../torch/include $DST/torch/gpu/${CUDA_VERSION}/include
-#    cp build/lib/*.so $DST/torch/gpu/${CUDA_VERSION}/lib
-#    mkdir -p $DST/torch/gpu/${CUDA_VERSION}/share
-#    cp -r ../torch/share/cmake/ $DST/torch/gpu/${CUDA_VERSION}/share/cmake
-#    cd ..
-#    #rm -rf build
-#  fi
-#done
+CUDA_VERSIONS=(12.2)
+for CUDA_VERSION in "${CUDA_VERSIONS[@]}"; do
+  if [ ! -d $DST/torch/gpu/${CUDA_VERSION}/lib ]; then
+    mkdir -p build_${CUDA_VERSION}
+    cd build_${CUDA_VERSION}
+    ##-DTORCH_CUDA_ARCH_LIST="7.0 7.2 7.5 8.0 8.6 8.7 8.9 9.0 9.0a"
+    ##CUDA_HOST_COMPILER=cc
+    #PYTHON_EXECUTABLE=/usr/bin/python3 \
+    #LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64:/usr/local/lib:$LD_LIBRARY_PATH \
+    #PATH=/usr/local/cuda-${CUDA_VERSION}/bin:$PATH \
+    #CUDA_BIN_PATH=/usr/local/cuda-${CUDA_VERSION}/bin \
+    #CUDA_HOME=/usr/local/cuda-${CUDA_VERSION}/ \
+    #CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-${CUDA_VERSION}/ \
+    #CUDNN_LIB_DIR=/usr/local/cuda-${CUDA_VERSION}/lib64 \
+    #USE_CUDA=True \
+    #BUILD_TEST=False \
+    #TORCH_CUDA_ARCH_LIST="7.0 7.2 7.5 8.0 8.6 8.7 8.9 9.0 9.0a" \
+    #TORCH_NVCC_FLAGS="-Xfatbin -compress-all" \
+    #USE_SYSTEM_NCCL=False \
+    #USE_NCCL=False \
+    #BUILD_ONNX_PYTHON=False \
+    #BUILD_SHARED_LIBS=True \
+    #MAX_JOBS=2 \
+    #python3 ../tools/build_libtorch.py
+    #rm -rf $DST/torch/gpu/${CUDA_VERSION}
+    #mkdir -p $DST/torch/gpu/${CUDA_VERSION}/lib
+    #cp -r ../torch/include $DST/torch/gpu/${CUDA_VERSION}/include
+    #cp build/lib/*.so $DST/torch/gpu/${CUDA_VERSION}/lib
+    #mkdir -p $DST/torch/gpu/${CUDA_VERSION}/share
+    #cp -r ../torch/share/cmake/ $DST/torch/gpu/${CUDA_VERSION}/share/cmake
+    if [ "$PLATFORM" = "arm" ]; then
+      echo "ARM"
+    else
+      LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64:/usr/local/lib:$LD_LIBRARY_PATH \
+      PATH=/usr/local/cuda-${CUDA_VERSION}/bin:$PATH \
+      cmake \
+      -DCUDA_BIN_PATH=/usr/local/cuda-${CUDA_VERSION}/bin \
+      -DCUDA_HOME=/usr/local/cuda-${CUDA_VERSION}/ \
+      -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-${CUDA_VERSION}/ \
+      -DCUDNN_LIB_DIR=/usr/local/cuda-${CUDA_VERSION}/lib64 \
+      -DTORCH_CUDA_ARCH_LIST="8.0 8.6 8.7 8.9 9.0 9.0a" \
+      -DTORCH_NVCC_FLAGS="-Xfatbin -compress-all" \
+      -DUSE_SYSTEM_NCCL=False \
+      -DUSE_NCCL=False \
+      -DUSE_CUDA=True \
+      -DBUILD_TEST=False \
+      -DBUILD_PYTHON=False \
+      -DBUILD_ONNX_PYTHON=False \
+      -DBUILD_SHARED_LIBS=ON \
+      -DBUILD_CUSTOM_PROTOBUF=OFF \
+      -DUSE_GLOG=OFF \
+      -DCMAKE_PREFIX_PATH=$DST \
+      -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc" \
+      -DCMAKE_MODULE_LINKER_FLAGS="-static-libstdc++ -static-libgcc" \
+      -DCMAKE_SHARED_LINKER_FLAGS="-static-libstdc++ -static-libgcc" \
+      -DCMAKE_INSTALL_PREFIX=$DST/torch/gpu/${CUDA_VERSION} \
+      ..
+    make VERBOSE=1 -j4
+    make install
+    fi
+    cd ..
+    rm -rf build_${CUDA_VERSION}
+  fi
+done
 
 cd ..
 rm -rf pytorch

@@ -12,10 +12,12 @@ VoiceModel::VoiceModel() {
 
 VoiceModel::~VoiceModel() {
   _llm.reset();
+  _flow.reset();
 }
   
-int VoiceModel::load(const std::string& llm_model_path) {
+int VoiceModel::load(const std::string& llm_model_path, const std::string& flow_model_path) {
   LOG(INFO) << "VoiceModel::load LLM Init";
+  torch::autograd::GradMode::set_enabled(false);
   {
     //_llm = std::make_unique<torch::nn::Module>();
     //_llm->to(torch::kCPU);
@@ -29,6 +31,15 @@ int VoiceModel::load(const std::string& llm_model_path) {
     _llm->eval();
   }
   LOG(INFO) << "VoiceModel::load LLM End";
+  
+  LOG(INFO) << "VoiceModel::load FLow Init";
+  {
+    torch::jit::script::Module flow = torch::jit::load(flow_model_path, torch::kCPU);
+    _flow = std::make_unique<torch::jit::script::Module>(flow);
+    _flow->eval();
+    _flow_cache_dict = torch::zeros({1, 80, 0, 2}, torch::kFloat32);
+  }
+  LOG(INFO) << "VoiceModel::load Flow End";
   
   return 0;
 }
@@ -53,10 +64,36 @@ int VoiceModel::tts(
   inputs.push_back(25);          // sampling
   inputs.push_back(20.0);        // max_token_text_ratio
   inputs.push_back(2.0);         // min_token_text_ratio
+  //torch::NoGradGuard no_grad;
   std::vector<int64_t> output_tensor = _llm->get_method("inference")(inputs).toIntVector();
 	for (auto _ : output_tensor) {
     LOG(INFO) << _;
   }
+  return 0;
+}
+  
+int VoiceModel::infer_flow(
+  const torch::Tensor& token,
+  const torch::Tensor& prompt_speech_token,
+  const torch::Tensor& prompt_speech_feat,
+  const torch::Tensor& embedding,
+	float speed,
+	torch::Tensor& tts_mel
+	) {
+  torch::Tensor this_tts_speech_token = torch::Tensor(token).unsqueeze(0);
+	std::vector<torch::jit::IValue> inputs;
+  inputs.push_back(this_tts_speech_token.detach());
+  inputs.push_back(torch::tensor({this_tts_speech_token.size(1)}, torch::kInt32).detach());
+  inputs.push_back(prompt_speech_token.detach());
+  inputs.push_back(torch::tensor({prompt_speech_token.size(1)}, torch::kInt32).detach());
+  inputs.push_back(prompt_speech_feat.detach());
+  inputs.push_back(torch::tensor({prompt_speech_token.size(1)}, torch::kInt32).detach());
+  inputs.push_back(embedding.detach());
+  inputs.push_back(_flow_cache_dict.detach());
+  //torch::NoGradGuard no_grad;
+  auto output_elements = _flow->get_method("inference")(inputs).toTuple()->elements();
+  tts_mel = output_elements[0].toTensor();
+  _flow_cache_dict = output_elements[1].toTensor();
   return 0;
 }
 

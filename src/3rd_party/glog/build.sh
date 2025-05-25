@@ -17,7 +17,7 @@ export PKG_CONFIG_PATH=$DST/lib/pkgconfig:$PKG_CONFIG_PATH
 . $CUR_DIR/../build_conf.sh
 
 export GFLAGS_VERSION=2.2.1
-cp -r $CUR_DIR/pkg/gflags gflags-${GFLAGS_VERSION}
+cp -r $CUR_DIR/../gflags/pkg gflags-${GFLAGS_VERSION}
 cd gflags-${GFLAGS_VERSION}
 mkdir build
 cd build

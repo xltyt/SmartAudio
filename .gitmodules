@@ -71,11 +71,11 @@
 	path = src/3rd_party/onnx/pkg
 	url = https://github.com/microsoft/onnxruntime.git
 [submodule "src/search/data/model"]
-	path = src/search/data/model
+	path = data/model
 	url = https://www.modelscope.cn/iic/CosyVoice-300M.git
+[submodule "src/3rd_party/cosyvoice/pkg"]
+	path = src/cosyvoice/pkg
+	url = https://github.com/FunAudioLLM/CosyVoice.git
 [submodule "src/3rd_party/kaldi/pkg"]
 	path = src/3rd_party/kaldi/pkg
 	url = https://github.com/csukuangfj/kaldi-native-fbank.git
-[submodule "src/3rd_party/cosyvoice/pkg"]
-	path = src/3rd_party/cosyvoice/pkg
-	url = https://github.com/FunAudioLLM/CosyVoice.git

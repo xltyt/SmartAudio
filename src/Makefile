@@ -9,6 +9,7 @@ all : prep
 # pip install setuptools PyYAML typing_extensions --index-url https://mirrors.aliyun.com/pypi/simple/
 
 prep:
+	@mkdir -p ../model
 	echo "Build amd64..."
 	make -C 3rd_party
 	make -j16 -C common

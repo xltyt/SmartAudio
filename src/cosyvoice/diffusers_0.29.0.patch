@@ -1,0 +1,132 @@
+diff -ruNa '--exclude=*.pyc' '--exclude=*.swp' /data/local/conda/envs/audio_ori/lib/python3.10/site-packages/diffusers/models/attention_processor.py /data/local/conda/envs/audio/lib/python3.10/site-packages/diffusers/models/attention_processor.py
+--- /data/local/conda/envs/audio_ori/lib/python3.10/site-packages/diffusers/models/attention_processor.py	2026-05-22 13:00:42.156643033 +0800
++++ /data/local/conda/envs/audio/lib/python3.10/site-packages/diffusers/models/attention_processor.py	2026-05-23 11:06:01.615944708 +0800
+@@ -517,13 +517,88 @@
+             raise ValueError(f"{lora_processor_cls} does not exist.")
+ 
+         return lora_processor
++        
++    r"""
++    Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0).
++    """
++    def AttnProcessor2_0(
++        self,
++        hidden_states: torch.Tensor,
++        encoder_hidden_states: Optional[torch.Tensor] = None,
++        attention_mask: Optional[torch.Tensor] = None,
++        temb: Optional[torch.Tensor] = None,
++    ) -> torch.Tensor:
++        residual = hidden_states
++        if self.spatial_norm is not None:
++            hidden_states = self.spatial_norm(hidden_states, temb)
++
++        input_ndim = hidden_states.ndim
++
++        if input_ndim == 4:
++            batch_size, channel, height, width = hidden_states.shape
++            hidden_states = hidden_states.view(batch_size, channel, height * width).transpose(1, 2)
++
++        batch_size, sequence_length, _ = (
++            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
++        )
++
++        if attention_mask is not None:
++            attention_mask = self.prepare_attention_mask(attention_mask, sequence_length, batch_size)
++            # scaled_dot_product_attention expects attention_mask shape to be
++            # (batch, heads, source_length, target_length)
++            attention_mask = attention_mask.view(batch_size, self.heads, -1, attention_mask.shape[-1])
++
++        if self.group_norm is not None:
++            hidden_states = self.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
++
++        query = self.to_q(hidden_states)
++
++        if encoder_hidden_states is None:
++            encoder_hidden_states = hidden_states
++        elif self.norm_cross is not None:
++            encoder_hidden_states = self.norm_encoder_hidden_states(encoder_hidden_states)
++
++        key = self.to_k(encoder_hidden_states)
++        value = self.to_v(encoder_hidden_states)
++
++        inner_dim = key.shape[-1]
++        head_dim = inner_dim // self.heads
++
++        query = query.view(batch_size, -1, self.heads, head_dim).transpose(1, 2)
++
++        key = key.view(batch_size, -1, self.heads, head_dim).transpose(1, 2)
++        value = value.view(batch_size, -1, self.heads, head_dim).transpose(1, 2)
++
++        # the output of sdp = (batch, num_heads, seq_len, head_dim)
++        # TODO: add support for attn.scale when we move to Torch 2.1
++        hidden_states = F.scaled_dot_product_attention(
++            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
++        )
++
++        hidden_states = hidden_states.transpose(1, 2).reshape(batch_size, -1, self.heads * head_dim)
++        hidden_states = hidden_states.to(query.dtype)
++
++        # linear proj
++        hidden_states = self.to_out[0](hidden_states)
++        # dropout
++        hidden_states = self.to_out[1](hidden_states)
++
++        if input_ndim == 4:
++            batch_size, channel, height, width = hidden_states.shape
++            hidden_states = hidden_states.transpose(-1, -2).reshape(batch_size, channel, height, width)
++
++        if self.residual_connection:
++            hidden_states = hidden_states + residual
++
++        hidden_states = hidden_states / self.rescale_output_factor
++
++        return hidden_states
+ 
+     def forward(
+         self,
+         hidden_states: torch.Tensor,
+         encoder_hidden_states: Optional[torch.Tensor] = None,
+         attention_mask: Optional[torch.Tensor] = None,
+-        **cross_attention_kwargs,
+     ) -> torch.Tensor:
+         r"""
+         The forward method of the `Attention` class.
+@@ -545,23 +620,10 @@
+         # here we simply pass along all tensors to the selected processor class
+         # For standard processors that are defined here, `**cross_attention_kwargs` is empty
+ 
+-        attn_parameters = set(inspect.signature(self.processor.__call__).parameters.keys())
+-        quiet_attn_parameters = {"ip_adapter_masks"}
+-        unused_kwargs = [
+-            k for k, _ in cross_attention_kwargs.items() if k not in attn_parameters and k not in quiet_attn_parameters
+-        ]
+-        if len(unused_kwargs) > 0:
+-            logger.warning(
+-                f"cross_attention_kwargs {unused_kwargs} are not expected by {self.processor.__class__.__name__} and will be ignored."
+-            )
+-        cross_attention_kwargs = {k: w for k, w in cross_attention_kwargs.items() if k in attn_parameters}
+-
+-        return self.processor(
+-            self,
++        return self.AttnProcessor2_0(
+             hidden_states,
+             encoder_hidden_states=encoder_hidden_states,
+             attention_mask=attention_mask,
+-            **cross_attention_kwargs,
+         )
+ 
+     def batch_to_head_dim(self, tensor: torch.Tensor) -> torch.Tensor:
+diff -ruNa '--exclude=*.pyc' '--exclude=*.swp' /data/local/conda/envs/audio_ori/lib/python3.10/site-packages/diffusers/models/lora.py /data/local/conda/envs/audio/lib/python3.10/site-packages/diffusers/models/lora.py
+--- /data/local/conda/envs/audio_ori/lib/python3.10/site-packages/diffusers/models/lora.py	2026-05-22 13:00:42.160643114 +0800
++++ /data/local/conda/envs/audio/lib/python3.10/site-packages/diffusers/models/lora.py	2026-05-22 14:40:08.006087993 +0800
+@@ -450,8 +450,8 @@
+ 
+     def forward(self, hidden_states: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
+         if self.lora_layer is None:
+-            out = super().forward(hidden_states)
++            out = F.linear(hidden_states, self.weight, self.bias)
+             return out
+         else:
+-            out = super().forward(hidden_states) + (scale * self.lora_layer(hidden_states))
++            out = F.Linear(hidden_states, self.weight, self.bias) + (scale * self.lora_layer(hidden_states))
+             return out

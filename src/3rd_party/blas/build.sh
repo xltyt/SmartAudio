@@ -30,7 +30,19 @@ if [ "$PLATFORM" = "arm" ]; then
 else
   mkdir build
   cd build
-  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="-fPIC -I$DST/include" -DCMAKE_CXX_FLAGS="-fPIC -I$DST/include" -DCMAKE_EXE_LINKER_FLAGS="-L$DST/lib -lstdc++ -lm -lpthread -ldl -Wl,-rpath=$DST/lib" -DCMAKE_MODULE_LINKER_FLAGS="-L$DST/lib -lstdc++ -lm -lpthread -ldl -Wl,-rpath=$DST/lib" -DCMAKE_SHARED_LINKER_FLAGS="-L$DST/lib -lstdc++ -lm -lpthread -ldl -Wl,-rpath=$DST/lib" -DCMAKE_STATIC_LINKER_FLAGS="" -DCMAKE_INSTALL_LIBDIR=$DST/lib -DCMAKE_INSTALL_PREFIX=$DST/ -DNO_AVX512=1 ../
+  cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_FLAGS="-fPIC -I$DST/include" \
+    -DCMAKE_CXX_FLAGS="-fPIC -I$DST/include" \
+    -DCMAKE_EXE_LINKER_FLAGS="-L$DST/lib -lstdc++ -lm -lpthread -ldl -Wl,-rpath=$DST/lib" \
+    -DCMAKE_MODULE_LINKER_FLAGS="-L$DST/lib -lstdc++ -lm -lpthread -ldl -Wl,-rpath=$DST/lib" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-L$DST/lib -lstdc++ -lm -lpthread -ldl -Wl,-rpath=$DST/lib" \
+    -DCMAKE_STATIC_LINKER_FLAGS="" \
+    -DCMAKE_INSTALL_LIBDIR=$DST/lib \
+    -DCMAKE_INSTALL_PREFIX=$DST/ \
+    -DNO_AVX512=1 \
+    -DUSE_OPENMP=ON \
+    ../
   make VERBOSE=1 -j${CPU_COUNT}
   make install
   cd ..

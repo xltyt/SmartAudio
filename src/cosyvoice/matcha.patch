@@ -1,0 +1,149 @@
+diff --git a/matcha/models/components/decoder.py b/matcha/models/components/decoder.py
+index 1137cd7..6f62b47 100644
+--- a/matcha/models/components/decoder.py
++++ b/matcha/models/components/decoder.py
+@@ -17,7 +17,7 @@ class SinusoidalPosEmb(torch.nn.Module):
+         self.dim = dim
+         assert self.dim % 2 == 0, "SinusoidalPosEmb requires dim to be even"
+ 
+-    def forward(self, x, scale=1000):
++    def forward(self, x, scale:int=1000):
+         if x.ndim < 1:
+             x = x.unsqueeze(0)
+         device = x.device
+@@ -77,18 +77,12 @@ class TimestepEmbedding(nn.Module):
+         time_embed_dim: int,
+         act_fn: str = "silu",
+         out_dim: int = None,
+-        post_act_fn: Optional[str] = None,
+-        cond_proj_dim=None,
++        post_act_fn: Optional[str] = None
+     ):
+         super().__init__()
+ 
+         self.linear_1 = nn.Linear(in_channels, time_embed_dim)
+ 
+-        if cond_proj_dim is not None:
+-            self.cond_proj = nn.Linear(cond_proj_dim, in_channels, bias=False)
+-        else:
+-            self.cond_proj = None
+-
+         self.act = get_activation(act_fn)
+ 
+         if out_dim is not None:
+@@ -102,9 +96,7 @@ class TimestepEmbedding(nn.Module):
+         else:
+             self.post_act = get_activation(post_act_fn)
+ 
+-    def forward(self, sample, condition=None):
+-        if condition is not None:
+-            sample = sample + self.cond_proj(condition)
++    def forward(self, sample):
+         sample = self.linear_1(sample)
+ 
+         if self.act is not None:
+diff --git a/matcha/models/components/transformer.py b/matcha/models/components/transformer.py
+index dd1afa3..7e58d3f 100644
+--- a/matcha/models/components/transformer.py
++++ b/matcha/models/components/transformer.py
+@@ -176,23 +176,13 @@ class BasicTransformerBlock(nn.Module):
+         super().__init__()
+         self.only_cross_attention = only_cross_attention
+ 
+-        self.use_ada_layer_norm_zero = (num_embeds_ada_norm is not None) and norm_type == "ada_norm_zero"
+-        self.use_ada_layer_norm = (num_embeds_ada_norm is not None) and norm_type == "ada_norm"
+-
+         if norm_type in ("ada_norm", "ada_norm_zero") and num_embeds_ada_norm is None:
+             raise ValueError(
+                 f"`norm_type` is set to {norm_type}, but `num_embeds_ada_norm` is not defined. Please make sure to"
+                 f" define `num_embeds_ada_norm` if setting `norm_type` to {norm_type}."
+             )
+ 
+-        # Define 3 blocks. Each block has its own normalization layer.
+-        # 1. Self-Attn
+-        if self.use_ada_layer_norm:
+-            self.norm1 = AdaLayerNorm(dim, num_embeds_ada_norm)
+-        elif self.use_ada_layer_norm_zero:
+-            self.norm1 = AdaLayerNormZero(dim, num_embeds_ada_norm)
+-        else:
+-            self.norm1 = nn.LayerNorm(dim, elementwise_affine=norm_elementwise_affine)
++        self.norm1 = nn.LayerNorm(dim, elementwise_affine=norm_elementwise_affine)
+         self.attn1 = Attention(
+             query_dim=dim,
+             heads=num_attention_heads,
+@@ -209,9 +199,7 @@ class BasicTransformerBlock(nn.Module):
+             # I.e. the number of returned modulation chunks from AdaLayerZero would not make sense if returned during
+             # the second cross attention block.
+             self.norm2 = (
+-                AdaLayerNorm(dim, num_embeds_ada_norm)
+-                if self.use_ada_layer_norm
+-                else nn.LayerNorm(dim, elementwise_affine=norm_elementwise_affine)
++                nn.LayerNorm(dim, elementwise_affine=norm_elementwise_affine)
+             )
+             self.attn2 = Attention(
+                 query_dim=dim,
+@@ -247,52 +235,34 @@ class BasicTransformerBlock(nn.Module):
+         encoder_hidden_states: Optional[torch.FloatTensor] = None,
+         encoder_attention_mask: Optional[torch.FloatTensor] = None,
+         timestep: Optional[torch.LongTensor] = None,
+-        cross_attention_kwargs: Dict[str, Any] = None,
+         class_labels: Optional[torch.LongTensor] = None,
+     ):
+         # Notice that normalization is always applied before the real computation in the following blocks.
+-        # 1. Self-Attention
+-        if self.use_ada_layer_norm:
+-            norm_hidden_states = self.norm1(hidden_states, timestep)
+-        elif self.use_ada_layer_norm_zero:
+-            norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(
+-                hidden_states, timestep, class_labels, hidden_dtype=hidden_states.dtype
+-            )
+-        else:
+-            norm_hidden_states = self.norm1(hidden_states)
+-
+-        cross_attention_kwargs = cross_attention_kwargs if cross_attention_kwargs is not None else {}
++        norm_hidden_states = self.norm1(hidden_states)
+ 
+         attn_output = self.attn1(
+             norm_hidden_states,
+             encoder_hidden_states=encoder_hidden_states if self.only_cross_attention else None,
+             attention_mask=encoder_attention_mask if self.only_cross_attention else attention_mask,
+-            **cross_attention_kwargs,
+         )
+-        if self.use_ada_layer_norm_zero:
+-            attn_output = gate_msa.unsqueeze(1) * attn_output
+         hidden_states = attn_output + hidden_states
+ 
+         # 2. Cross-Attention
+         if self.attn2 is not None:
+             norm_hidden_states = (
+-                self.norm2(hidden_states, timestep) if self.use_ada_layer_norm else self.norm2(hidden_states)
++                self.norm2(hidden_states)
+             )
+ 
+             attn_output = self.attn2(
+                 norm_hidden_states,
+                 encoder_hidden_states=encoder_hidden_states,
+                 attention_mask=encoder_attention_mask,
+-                **cross_attention_kwargs,
+             )
+             hidden_states = attn_output + hidden_states
+ 
+         # 3. Feed-forward
+         norm_hidden_states = self.norm3(hidden_states)
+ 
+-        if self.use_ada_layer_norm_zero:
+-            norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
+-
+         if self._chunk_size is not None:
+             # "feed_forward_chunk_size" can be used to save memory
+             if norm_hidden_states.shape[self._chunk_dim] % self._chunk_size != 0:
+@@ -308,9 +278,6 @@ class BasicTransformerBlock(nn.Module):
+         else:
+             ff_output = self.ff(norm_hidden_states)
+ 
+-        if self.use_ada_layer_norm_zero:
+-            ff_output = gate_mlp.unsqueeze(1) * ff_output
+-
+         hidden_states = ff_output + hidden_states
+ 
+         return hidden_states
