@@ -40,16 +40,19 @@ endif
 
 ifeq ($(MODE),gpu)
   TORCH_ROOT = $(THIRD_DIR)/torch/gpu/$(CUDA_VERSION)
+  TORCH_LIB = -Wl,--no-as-needed -ltorch_cuda -lc10_cuda -Wl,--as-needed -lc10 -ltorch_cpu -ltorch
 else
   TORCH_ROOT = $(THIRD_DIR)/torch/cpu
+  TORCH_LIB = -ltorch_cpu -ltorch -lc10
 endif
 TORCH_AUDIO_ROOT = $(THIRD_DIR)/torchaudio/cpu
 
-ifeq ($(MODE),gpu)
-  ONNX_ROOT = $(THIRD_DIR)/onnx/gpu/$(CUDA_VERSION)
-else
-  ONNX_ROOT = $(THIRD_DIR)/onnx/cpu
-endif
+#ifeq ($(MODE),gpu)
+#  ONNX_ROOT = $(THIRD_DIR)/onnx/gpu/$(CUDA_VERSION)
+#else
+#  ONNX_ROOT = $(THIRD_DIR)/onnx/cpu
+#endif
+ONNX_ROOT = $(THIRD_DIR)/onnx/cpu
 
 CUDA_INCLUDE ?= 
 ifeq ($(MODE),gpu)
@@ -193,7 +196,7 @@ BASE_LIBS += $(THIRD_DIR)/../lib/libmycommon.a
 BASE_LIBS += \
   -lkaldi-native-fbank-core -lkissfft-float \
   -L$(ONNX_ROOT)/lib -lonnxruntime \
-  -L$(TORCH_ROOT)/lib -ltorch_cpu -ltorch -lc10 \
+  -L$(TORCH_ROOT)/lib $(TORCH_LIB) \
   $(CUDA_LIB) \
   -L$(THIRD_DIR)/lib \
   -lsamplerate -lsndfile \
@@ -218,7 +221,7 @@ LIBS += \
   $(BASE_LIBS)
 
 ifeq ($(MODE),gpu)
-  CFLAGS += -DUSE_GPU=1 -DCUDA_VERSION=\"$(CUDA_VERSION)\"
+  CFLAGS += -DUSE_GPU=1 -DMY_CUDA_VERSION=\"$(CUDA_VERSION)\" -DGLIBCXX_USE_CXX11_ABI=1
 endif
 CFLAGS    += -O2 -g -std=c++17 -fopenmp -static-libstdc++ -static-libgcc
 ifeq ($(PLATFORM),amd64)

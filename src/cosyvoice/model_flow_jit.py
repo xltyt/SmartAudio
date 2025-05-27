@@ -13,8 +13,8 @@ sys.path.append('pkg/')
 #torch._C._jit_debug_type_inference(True)
 
 device = "cpu"
-model_dir = "../../data/model"
-target_model_dir = "../../model"
+model_dir = "../../data/model_ori"
+target_model_dir = "../../data/model"
 os.system("mkdir -p %s" % target_model_dir)
 hyper_yaml_path = 'cosyvoice.yaml'
 if not os.path.exists(hyper_yaml_path):

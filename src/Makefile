@@ -9,11 +9,12 @@ all : prep
 # pip install setuptools PyYAML typing_extensions --index-url https://mirrors.aliyun.com/pypi/simple/
 
 prep:
-	@mkdir -p ../model
+	@bash ../data/model_prepare.sh
 	echo "Build amd64..."
 	make -C 3rd_party
 	make -j16 -C common
 	make -j16 -C search
+	MODE=gpu make -j16 -C search
 	echo "Build arm..."
 	PLATFORM=arm make -C 3rd_party
 	PLATFORM=arm make -j16 -C common
@@ -26,6 +27,7 @@ dist:
 clean:
 	make clean -C common
 	make clean -C search
+	MODE=gpu make clean -C search
 	PLATFORM=arm make clean -C common
 	PLATFORM=arm make clean -C search
 

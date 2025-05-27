@@ -71,7 +71,7 @@
 	path = src/3rd_party/onnx/pkg
 	url = https://github.com/microsoft/onnxruntime.git
 [submodule "src/search/data/model"]
-	path = data/model
+	path = data/model_ori
 	url = https://www.modelscope.cn/iic/CosyVoice-300M.git
 [submodule "src/3rd_party/cosyvoice/pkg"]
 	path = src/cosyvoice/pkg
