@@ -22,12 +22,12 @@ public:
   int load(const std::string& llm_model_path, const std::string& flow_model_path, const std::string& hift_model_path);
   int tts(
     const torch::Tensor& text,
-    const torch::Tensor& text_len,
     const torch::Tensor& prompt_text,
-    const torch::Tensor& prompt_text_len,
     const torch::Tensor& prompt_speech_token,
-    const torch::Tensor& prompt_speech_token_len,
-    const torch::Tensor& embedding
+    const torch::Tensor& prompt_speech_feat,
+    const torch::Tensor& embedding,
+    float speed,
+    std::vector<float>& wav_data
     );
 
 public:

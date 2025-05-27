@@ -69,13 +69,61 @@ int VoiceModel::load(const std::string& llm_model_path, const std::string& flow_
   
 int VoiceModel::tts(
   const torch::Tensor& text,
-  const torch::Tensor& text_len,
   const torch::Tensor& prompt_text,
-  const torch::Tensor& prompt_text_len,
   const torch::Tensor& prompt_speech_token,
-  const torch::Tensor& prompt_speech_token_len,
-  const torch::Tensor& embedding
+  const torch::Tensor& prompt_speech_feat,
+  const torch::Tensor& embedding,
+  float speed,
+  std::vector<float>& wav_data
   ) {
+	std::vector<int64_t> output_ids;
+  try {
+    infer_llm(
+      text,
+      prompt_text,
+      prompt_speech_token,
+      embedding,
+      output_ids
+      );
+  }
+	catch (const std::exception& e) {
+    LOG(WARNING) << "VoiceModel::tts Infer LLM Failed[" << e.what() << "]";
+    return -1;
+	}
+  torch::Tensor tts_mel;
+  try {
+    infer_flow(
+      torch::tensor(output_ids, torch::kInt32).to(text.device()),
+      prompt_speech_token,
+      prompt_speech_feat,
+      embedding,
+      speed,
+      tts_mel
+    );
+  }
+	catch (const std::exception& e) {
+    LOG(WARNING) << "VoiceModel::tts Infer Flow Failed[" << e.what() << "]";
+    return -1;
+	}
+  torch::Tensor tts_speech;
+	torch::Tensor tts_source;
+  try {
+    infer_hift(
+      tts_mel.to(torch::kCPU),
+      tts_speech,
+      tts_source
+      );
+  }
+	catch (const std::exception& e) {
+    LOG(WARNING) << "VoiceModel::tts Infer Hift Failed[" << e.what() << "]";
+    return -1;
+	}
+  if (tts_speech.dim() != 2 || tts_speech.sizes()[0] != 1) {
+    LOG(WARNING) << "VoiceModel::tts Infer Hift Return Invalid";
+    return -1;
+  }
+  float *tts_speech_data = tts_speech[0].to(torch::kCPU).contiguous().data_ptr<float>();
+	wav_data = std::vector<float>(tts_speech_data, tts_speech_data + tts_speech[0].numel());
   return 0;
 }
 

@@ -671,7 +671,59 @@ TEST(Search, Hift) {
   ASSERT_EQ(0, ret);
   LOG(INFO) << "Save Success";
   LOG(INFO) << "Hift End";
-  getchar();
+}
+
+TEST(Search, Model) {
+  std::vector<float> prompt_speech_16k;
+  int channels = 0;
+  {
+    const std::string& path = "data/mda-qmwfy2k746929rxh.mp3";
+    std::string output_path = "out_" + Crypt::gen_random_string(8) + ".wav";
+    ConvertToWav(path, output_path);
+    int ret = LoadWav(output_path, 16000, prompt_speech_16k, channels);
+    ASSERT_EQ(ret, 0);
+    LOG(INFO) << "Len[" << prompt_speech_16k.size() << "]";
+    unlink(output_path.c_str());
+  }
+  Frontend frontend("./data/model/speech_tokenizer_v1.onnx", "./data/model/campplus.onnx");
+  Frontend::ZeroShotInput result;
+  frontend.frontend_zero_shot(
+    "主席说我开飞机的水平很高。",
+    "二零二四年，我们一起走过春夏秋冬，一道经历风雨彩虹，一个个瞬间定格在这不平凡的一年，令人感慨、难以忘怀。",
+    prompt_speech_16k,
+    22050,
+    result
+    );
+
+  std::string llm_model_path = "./data/model/llm.fp32.jit";
+  std::string flow_model_path = "./data/model/flow.fp32.jit";
+  std::string hift_model_path = "./data/model/hift.fp32.jit";
+  VoiceModel model;
+  model.load(llm_model_path, flow_model_path, hift_model_path);
+  LOG(INFO) << "TTS Start";
+  std::vector<float> wav_data;
+  int ret = model.tts(
+#if USE_GPU
+    result.text.to(torch::kCUDA),
+    result.prompt_text.to(torch::kCUDA),
+    result.prompt_speech_token.to(torch::kCUDA),
+    result.prompt_speech_feat.to(torch::kCUDA),
+    result.embedding.to(torch::kCUDA),
+#else
+    result.text,
+    result.prompt_text,
+    result.prompt_speech_token,
+    result.prompt_speech_feat,
+    result.embedding,
+#endif
+    1.0,
+    wav_data
+    );
+  ASSERT_EQ(0, ret);
+  ret = SaveWav("/tmp/hift_output.wav", 22050, wav_data, 1);
+  ASSERT_EQ(0, ret);
+  LOG(INFO) << "Save Success";
+  LOG(INFO) << "TTS End";
 }
 
 int main(int argc, char *argv[]) {
