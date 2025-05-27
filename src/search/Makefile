@@ -265,11 +265,17 @@ prep:
 $(APP_DIR)/$(BUILD_MODULE_NAME) : $(OBJS_PB) $(OBJS) $(OBJS_DIR)/main.o
 	$(CXX) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(THIRD_DIR)/lib/libbrpc.a $(LIBS) $(WEB_LIBPATHS) $(WEB_LIBS) -Wl,-rpath=../lib -Wl,-rpath=lib 
 	$(STRIP) $@
+  
+ifeq ($(MODE),gpu)
+  TEST_SEARCH_MODULE_NAME=test_search_gpu_$(CUDA_VERSION)
+else
+  TEST_SEARCH_MODULE_NAME=test_search
+endif
 
 test: \
-	$(TEST_DIR)/test_search
+	$(TEST_DIR)/$(TEST_SEARCH_MODULE_NAME)
 
-$(TEST_DIR)/test_search : \
+$(TEST_DIR)/$(TEST_SEARCH_MODULE_NAME) : \
 	$(OBJS_DIR)/test_search.o \
 	$(OBJS_DIR)/v1/model.o \
 	$(OBJS_DIR)/tiktoken.o \

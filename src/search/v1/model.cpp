@@ -76,22 +76,29 @@ int VoiceModel::tts(
   const torch::Tensor& prompt_speech_token_len,
   const torch::Tensor& embedding
   ) {
+  return 0;
+}
+
+int VoiceModel::infer_llm(
+  const torch::Tensor& text,
+  const torch::Tensor& prompt_text,
+  const torch::Tensor& prompt_speech_token,
+  const torch::Tensor& embedding,
+	std::vector<int64_t>& output
+  ) {
   std::vector<torch::jit::IValue> inputs;
   inputs.push_back(text.detach());
-  inputs.push_back(torch::tensor({text.size(1)}, torch::kInt32).detach());
+  inputs.push_back(torch::tensor({text.size(1)}, torch::kInt32).to(text.device()).detach());
   inputs.push_back(prompt_text.detach());
-  inputs.push_back(torch::tensor({prompt_text.size(1)}, torch::kInt32).detach());
+  inputs.push_back(torch::tensor({prompt_text.size(1)}, torch::kInt32).to(prompt_text.device()).detach());
   inputs.push_back(prompt_speech_token.detach());
-  inputs.push_back(torch::tensor({prompt_speech_token.size(1)}, torch::kInt32).detach());
+  inputs.push_back(torch::tensor({prompt_speech_token.size(1)}, torch::kInt32).to(prompt_speech_token.device()).detach());
   inputs.push_back(embedding.detach());
   inputs.push_back(25);          // sampling
   inputs.push_back(20.0);        // max_token_text_ratio
   inputs.push_back(2.0);         // min_token_text_ratio
   //torch::NoGradGuard no_grad;
-  std::vector<int64_t> output_tensor = _llm->get_method("inference")(inputs).toIntVector();
-	for (auto _ : output_tensor) {
-    LOG(INFO) << _;
-  }
+  output = _llm->get_method("inference")(inputs).toIntVector();
   return 0;
 }
   

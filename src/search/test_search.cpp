@@ -511,23 +511,32 @@ TEST(Search, LLM) {
     result
     );
 
-  std::string llm_model_path = "../../model/llm.fp32.jit";
-  std::string flow_model_path = "../../model/flow.fp32.jit";
-  std::string hift_model_path = "../../model/hift.fp32.jit";
+  std::string llm_model_path = "./data/model/llm.fp32.jit";
+  std::string flow_model_path = "./data/model/flow.fp32.jit";
+  std::string hift_model_path = "./data/model/hift.fp32.jit";
   VoiceModel model;
   model.load(llm_model_path, flow_model_path, hift_model_path);
-  LOG(INFO) << "TTS Start";
-  int ret = model.tts(
+  LOG(INFO) << "LLM Start";
+	std::vector<int64_t> output;
+  int ret = model.infer_llm(
+#if USE_GPU
+    result.text.to(torch::kCUDA),
+    result.prompt_text.to(torch::kCUDA),
+    result.prompt_speech_token.to(torch::kCUDA),
+    result.embedding.to(torch::kCUDA),
+#else
     result.text,
-    result.text_len,
     result.prompt_text,
-    result.prompt_text_len,
     result.prompt_speech_token,
-    result.prompt_speech_token_len,
-    result.embedding
+    result.embedding,
+#endif
+    output
     );
   LOG(INFO) << "TTS End";
   ASSERT_EQ(0, ret);
+	for (auto _ : output) {
+    LOG(INFO) << _;
+  }
 }
 
 TEST(Search, Flow) {

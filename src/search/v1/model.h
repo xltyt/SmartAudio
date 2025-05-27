@@ -31,6 +31,13 @@ public:
     );
 
 public:
+  int infer_llm(
+    const torch::Tensor& text,
+    const torch::Tensor& prompt_text,
+    const torch::Tensor& prompt_speech_token,
+    const torch::Tensor& embedding,
+	  std::vector<int64_t>& output
+    );
   int infer_flow(
 		const torch::Tensor& token,
 		const torch::Tensor& prompt_speech_token,
