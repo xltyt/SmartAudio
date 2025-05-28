@@ -266,7 +266,11 @@ prep:
 	@mkdir -p $(OBJS_DIR)
 
 $(APP_DIR)/$(BUILD_MODULE_NAME) : $(OBJS_PB) $(OBJS) $(OBJS_DIR)/main.o
-	$(CXX) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(THIRD_DIR)/lib/libbrpc.a $(LIBS) $(WEB_LIBPATHS) $(WEB_LIBS) -Wl,-rpath=../lib -Wl,-rpath=lib 
+ifeq ($(MODE),gpu)
+	$(CXX) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(THIRD_DIR)/lib/libbrpc.a $(LIBS) $(WEB_LIBPATHS) $(WEB_LIBS) -Wl,-rpath=../lib -Wl,-rpath=lib -Wl,-rpath=/usr/local/cuda-$(CUDA_VERSION)/lib64/
+else
+	$(CXX) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(THIRD_DIR)/lib/libbrpc.a $(LIBS) $(WEB_LIBPATHS) $(WEB_LIBS) -Wl,-rpath=../lib -Wl,-rpath=lib
+endif
 	$(STRIP) $@
   
 ifeq ($(MODE),gpu)

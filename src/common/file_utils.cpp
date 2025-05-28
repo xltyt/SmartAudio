@@ -155,7 +155,7 @@ namespace mycommon {
     memset(buf, 0, size + 10);
     fread(buf, size, 1, fp);
     fclose(fp);
-    content = buf;
+    content = std::string(buf, size);
     delete[] buf;
     return 0;
   }

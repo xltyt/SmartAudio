@@ -15,7 +15,7 @@
 #include "flags.h"
 #include "dispatch.h"
 
-#define APP_VERSION "0.3"
+#define APP_VERSION "0.15"
 
 int GetUriQueryInt(const brpc::URI& uri, const std::string&key, int default_val) {
   const std::string *param_val = uri.GetQuery(key);

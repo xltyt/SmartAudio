@@ -171,7 +171,7 @@ int VoiceModel::infer_flow(
   //torch::NoGradGuard no_grad;
   auto output_elements = _flow->get_method("inference")(inputs).toTuple()->elements();
   tts_mel = output_elements[0].toTensor();
-  _flow_cache_dict = output_elements[1].toTensor();
+  //_flow_cache_dict = output_elements[1].toTensor();
   return 0;
 }
 
@@ -185,7 +185,7 @@ int VoiceModel::infer_hift(
   inputs.push_back(_hift_cache_source.to(speech_feat.device()).detach());
   auto output_elements = _hift->get_method("inference")(inputs).toTuple()->elements();
   tts_speech = output_elements[0].toTensor();
-  _flow_cache_dict = output_elements[1].toTensor();
+  //_hift_cache_source = output_elements[1].toTensor();
 	return 0;
 }
 
