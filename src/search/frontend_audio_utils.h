@@ -37,6 +37,7 @@ std::pair<torch::Tensor, torch::Tensor> extract_speech_feat(const torch::Tensor&
  *                       或 [batch, n_mels, num_frames]
  */
 torch::Tensor log_mel_spectrogram(
+  const std::string& dir,
   torch::Tensor audio,
   int n_mels = 80,
   int padding = 0,
@@ -44,6 +45,8 @@ torch::Tensor log_mel_spectrogram(
   );
 
 torch::Tensor kaldi_fbank(torch::Tensor speech);
+
+void frontend_clear_cache();
 
 #endif
 

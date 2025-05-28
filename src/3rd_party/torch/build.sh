@@ -169,7 +169,7 @@ for CUDA_VERSION in "${CUDA_VERSIONS[@]}"; do
       -DCMAKE_SHARED_LINKER_FLAGS="-static-libstdc++ -static-libgcc" \
       -DCMAKE_INSTALL_PREFIX=$DST/torch/gpu/${CUDA_VERSION} \
       ..
-    make VERBOSE=1 -j4
+    make VERBOSE=1 -j8
     make install
     fi
     cd ..

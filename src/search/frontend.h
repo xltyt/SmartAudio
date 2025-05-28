@@ -19,8 +19,7 @@
 class Frontend {
 public:
   Frontend(
-    const std::string& speech_tokenizer_model_path,
-    const std::string& campplus_model_path 
+    const std::string& dir
     );
   virtual ~Frontend();
     
@@ -51,6 +50,7 @@ public:
   torch::Tensor extract_spk_embedding(const torch::Tensor& speech);
 
 protected:
+  std::string _dir;
   std::unique_ptr<WhisperToken> _tokenizer;
   std::unique_ptr<Ort::Session> _speech_tokenizer_session;
   std::unique_ptr<Ort::Env> _speech_tokenizer_env;

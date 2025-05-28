@@ -116,7 +116,7 @@ WhisperToken::WhisperToken(const std::string& dir) {
     {"su", "sundanese"},
     {"yue", "cantonese"}
   };
-  std::string vocab_path = dir + "/data/whisper/" + encoding_name + ".tiktoken";
+  std::string vocab_path = dir + "/whisper/" + encoding_name + ".tiktoken";
   CoreBPE::HashMap<std::vector<uint8_t>, size_t> ranks = CoreBPE::load_tiktoken_bpe(vocab_path);
   int n_vocab = ranks.size();
 

@@ -11,7 +11,9 @@
 #include <glog/logging.h>
 #include <search.pb.h>
 #include <common.h>
+#include <base64.h>
 #include "flags.h"
+#include "dispatch.h"
 
 #define APP_VERSION "0.3"
 
@@ -106,7 +108,51 @@ public:
     uint64_t time_start = mycommon::getMilliTime();
     std::string resp;
     std::string error;
-    if ("upgrade" == unresolved_path) {
+    if ("audio" == unresolved_path) {
+      if (brpc::HTTP_METHOD_POST == http_method) {
+        std::string text;
+        std::string text_speech;
+        std::string out_text;
+        float speed = 1.0;
+        {
+          rapidjson::Document doc; 
+          rapidjson::Document::AllocatorType& allocator_result = doc.GetAllocator();
+          rapidjson::ParseResult ok = doc.Parse(req_body.c_str());
+          if (ok && doc.IsObject()) {
+            text = GET_JSON_STRING(doc, "text", "");
+            text_speech = GET_JSON_STRING(doc, "text_speech", "");
+            text_speech = common::base64_decode(text_speech);
+            out_text = GET_JSON_STRING(doc, "out_text", "");
+            speed = GET_JSON_FLOAT(doc, "speed", 1.0);
+            mycommon::str_trim(text);
+            mycommon::str_trim(out_text);
+          }
+          if (text.empty() || text_speech.empty() || out_text.empty()) {
+            cntl->http_response().set_status_code(400);
+            cntl->response_attachment().append(GenRespBody(-1, "Invalid Body"));
+            return;
+          }
+        }
+        std::string audio_data;
+        int ret = InferAudio(text, text_speech, out_text, speed, audio_data, error);
+        if (0 != ret) {
+          cntl->http_response().set_status_code(400);
+          cntl->response_attachment().append(GenRespBody(ret, error));
+          return;
+        }    
+        rapidjson::Document doc;
+        rapidjson::Document::AllocatorType& allocator_result = doc.GetAllocator();
+        rapidjson::Value json_val_result(rapidjson::kObjectType);
+        JSON_ADD_INT(json_val_result, status, "status", 0);
+        JSON_ADD_STRING(json_val_result, data, "data", common::base64_encode(audio_data));
+        rapidjson::StringBuffer sb;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+        json_val_result.Accept(writer);
+        cntl->response_attachment().append(sb.GetString());
+        return;
+      }
+    }
+    else if ("upgrade" == unresolved_path) {
       if (brpc::HTTP_METHOD_POST == http_method) {
         cntl->response_attachment().append("ok\n");
         return;
@@ -172,6 +218,8 @@ int main(int argc, char *argv[]) {
   FLAGS_colorlogtostderr = true;
   LOG(INFO) << "Start... Version[" << APP_VERSION << "]";
 
+  InitAudio();
+
   // Generally you only need one Server.
   brpc::Server server;
 
@@ -201,6 +249,8 @@ int main(int argc, char *argv[]) {
   // Wait until Ctrl-C is pressed, then Stop() and Join() the server.
   server.RunUntilAskedToQuit();
   LOG(INFO) << "Shutdown";
+
+  UninitAudio();
 
   LOG(INFO) << "Exit...";
   return 0;

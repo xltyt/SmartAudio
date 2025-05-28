@@ -47,12 +47,14 @@ else
 endif
 TORCH_AUDIO_ROOT = $(THIRD_DIR)/torchaudio/cpu
 
-#ifeq ($(MODE),gpu)
-#  ONNX_ROOT = $(THIRD_DIR)/onnx/gpu/$(CUDA_VERSION)
-#else
-#  ONNX_ROOT = $(THIRD_DIR)/onnx/cpu
-#endif
-ONNX_ROOT = $(THIRD_DIR)/onnx/cpu
+ifeq ($(MODE),gpu)
+  ONNX_ROOT = $(THIRD_DIR)/onnx/gpu/$(CUDA_VERSION)
+  #ONNX_LIB = -Wl,--no-as-needed -lonnxruntime_providers_cuda -lonnxruntime_providers_shared -Wl,--as-needed -lonnxruntime 
+  ONNX_LIB = -lonnxruntime
+else
+  ONNX_ROOT = $(THIRD_DIR)/onnx/cpu
+  ONNX_LIB = -lonnxruntime
+endif
 
 CUDA_INCLUDE ?= 
 ifeq ($(MODE),gpu)
@@ -195,7 +197,7 @@ TORCH_STATIC_LIB=\
 BASE_LIBS += $(THIRD_DIR)/../lib/libmycommon.a
 BASE_LIBS += \
   -lkaldi-native-fbank-core -lkissfft-float \
-  -L$(ONNX_ROOT)/lib -lonnxruntime \
+  -L$(ONNX_ROOT)/lib $(ONNX_LIB) \
   -L$(TORCH_ROOT)/lib $(TORCH_LIB) \
   $(CUDA_LIB) \
   -L$(THIRD_DIR)/lib \
@@ -244,6 +246,7 @@ SOURCES += \
   tiktoken.cpp \
   whisper_token.cpp \
   core_bpe.cpp \
+  dispatch.cpp \
   flags.cpp \
   main.cpp
 OBJS := $(addprefix $(OBJS_DIR)/,$(patsubst %.cpp,%.o,$(SOURCES)))

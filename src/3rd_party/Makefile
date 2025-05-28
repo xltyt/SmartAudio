@@ -25,12 +25,20 @@ prep:
 	@if [ ! -d ../../$(PLATFORM)/local/include/google/protobuf ]; then    cd protobuf && PLATFORM=$(PLATFORM) sh build.sh; fi
 	@if [ ! -d ../../$(PLATFORM)/local/include/brpc ]; then               cd brpc && PLATFORM=$(PLATFORM) bash build.sh; fi
 	@if [ ! -d ../../$(PLATFORM)/local/include/openblas ]; then           cd blas && PLATFORM=$(PLATFORM) bash build.sh; fi
+ifeq ($(PLATFORM),amd64)
+	@if [ ! -d ../../$(PLATFORM)/local/torch/gpu/12.2/include ]; then     cd torch && PLATFORM=$(PLATFORM) bash build.sh; fi
+else
 	@if [ ! -d ../../$(PLATFORM)/local/torch/cpu/include ]; then          cd torch && PLATFORM=$(PLATFORM) bash build.sh; fi
+endif
 	@if [ ! -d ../../$(PLATFORM)/local/torchaudio/cpu/include ]; then     cd torchaudio && PLATFORM=$(PLATFORM) bash build.sh; fi
 	@if [ ! -f ../../$(PLATFORM)/local/bin/ffmpeg ]; then                 cd ffmpeg && PLATFORM=$(PLATFORM) bash build.sh; fi
 	@if [ ! -f ../../$(PLATFORM)/local/include/sndfile.h ]; then          cd audio && PLATFORM=$(PLATFORM) bash build.sh; fi
 	@if [ ! -d ../../$(PLATFORM)/local/include/eigen3 ]; then             cd eigen && PLATFORM=$(PLATFORM) bash build.sh; fi
+ifeq ($(PLATFORM),amd64)
+	@if [ ! -d ../../$(PLATFORM)/local/onnx/gpu/12.2/include ]; then      cd onnx && PLATFORM=$(PLATFORM) bash build.sh; fi
+else
 	@if [ ! -d ../../$(PLATFORM)/local/onnx/cpu/include ]; then           cd onnx && PLATFORM=$(PLATFORM) bash build.sh; fi
+endif
 	@if [ ! -d ../../$(PLATFORM)/local/include/kaldi-native-fbank ]; then cd kaldi && PLATFORM=$(PLATFORM) bash build.sh; fi
 	##@rm -rf ../../build
 

@@ -9,28 +9,33 @@
 #include "frontend_audio_utils.h"
 #include <kaldi-native-fbank/csrc/online-feature.h>
 #include <kaldi-native-fbank/csrc/feature-fbank.h>
+#include <string_utils.h>
 
 Frontend::Frontend(
-  const std::string& speech_tokenizer_model_path,
-  const std::string& campplus_model_path 
+  const std::string& dir
   ) {
   LOG(INFO) << "Frontend::Frontend Init Token";
-  _tokenizer = std::make_unique<WhisperToken>(".");
+  _dir = dir;
+  const std::string campplus_model_path = mycommon::str_format("%s/model/campplus.onnx", dir.c_str());
+  const std::string speech_tokenizer_model_path = mycommon::str_format("%s/model/speech_tokenizer_v1.onnx", dir.c_str());
+  const std::string spk_path = mycommon::str_format("%s/model/spk2info.pt", dir.c_str());
+  
+  _tokenizer = std::make_unique<WhisperToken>(dir);
   // Speech Token Model
   LOG(INFO) << "Frontend::Frontend Init Speech Token";
   {
     Ort::SessionOptions option;
     option.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
     option.SetIntraOpNumThreads(16);
-#if 0
     if (torch::cuda::is_available()) {
-      // 旧版 API: OrtSessionOptionsAppendExecutionProvider_CUDA(option, 0);
-      // 新版 API (ORT >= 1.12):
-      OrtCUDAProviderOptionsV2 cuda_options;
-      cuda_options.device_id = 0;
+      // Old API: OrtSessionOptionsAppendExecutionProvider_CUDA(option, 0);
+      // New API (ORT >= 1.12):
+      //OrtCUDAProviderOptionsV2 cuda_options;
+      OrtCUDAProviderOptions cuda_options;
+      //cuda_options.device_id = 0;
       option.AppendExecutionProvider_CUDA(cuda_options);
+      LOG(INFO) << "Frontend::Frontend Init Speech Token Use CUDA";
     }
-#endif
     _speech_tokenizer_env = std::make_unique<Ort::Env>(ORT_LOGGING_LEVEL_WARNING, "speech_tokenizer");
     _speech_tokenizer_session = std::make_unique<Ort::Session>(*_speech_tokenizer_env.get(), speech_tokenizer_model_path.c_str(), option);
   }
@@ -40,6 +45,11 @@ Frontend::Frontend(
     Ort::SessionOptions option;
     option.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
     option.SetIntraOpNumThreads(16);
+    if (torch::cuda::is_available()) {
+      OrtCUDAProviderOptions cuda_options;
+      option.AppendExecutionProvider_CUDA(cuda_options);
+      LOG(INFO) << "Frontend::Frontend Init Campplus Token Use CUDA";
+    }
     _campplus_env = std::make_unique<Ort::Env>(ORT_LOGGING_LEVEL_VERBOSE, "campplus");
     _campplus_session = std::make_unique<Ort::Session>(*_campplus_env.get(), campplus_model_path.c_str(), option);
   }
@@ -117,7 +127,7 @@ std::pair<torch::Tensor, torch::Tensor> Frontend::extract_text_token(const std::
 }
   
 std::pair<torch::Tensor, torch::Tensor> Frontend::extract_speech_token(const torch::Tensor& speech) {
-  torch::Tensor feat = log_mel_spectrogram(speech, 128);
+  torch::Tensor feat = log_mel_spectrogram(_dir, speech, 128);
 #if 0
   speech_token = self.speech_tokenizer_session.run(None,
                                                    {self.speech_tokenizer_session.get_inputs()[0].name:
@@ -263,6 +273,7 @@ torch::Tensor Frontend::extract_spk_embedding(const torch::Tensor& speech) {
   inputs.push_back(std::move(feat_ort));
 
   // Run
+  LOG(INFO) << "extract_spk_embedding ONNX Run Start...";
   auto outputs = _campplus_session->Run(
     Ort::RunOptions{nullptr},
     input_names.data(),
@@ -271,6 +282,7 @@ torch::Tensor Frontend::extract_spk_embedding(const torch::Tensor& speech) {
     output_names.data(),
     output_names.size()
     );
+  LOG(INFO) << "extract_spk_embedding ONNX Run End";
   
   // Process
   auto& out_tensor = outputs[0];

@@ -620,7 +620,7 @@ std::pair<torch::Tensor, torch::Tensor> extract_speech_feat(const torch::Tensor&
 }
 
 static std::map<int, torch::Tensor> mel_filters_cache;
-static torch::Tensor mel_filters(torch::Device device, int n_mels) {
+static torch::Tensor mel_filters(const std::string& dir, torch::Device device, int n_mels) {
   if (n_mels != 80 && n_mels != 128) {
     std::ostringstream oss;
     oss << "Unsupported n_mels: " << n_mels;
@@ -646,7 +646,7 @@ static torch::Tensor mel_filters(torch::Device device, int n_mels) {
 			file.close();
 			return tensor.reshape(shape);
 		};
-    filters = load_tensor_from_binary(mycommon::str_format("data/whisper/mel_filters_mel_%d.bin", n_mels), std::vector<int64_t>({n_mels, 201}));
+    filters = load_tensor_from_binary(mycommon::str_format("%s/whisper/mel_filters_mel_%d.bin", dir.c_str(), n_mels), std::vector<int64_t>({n_mels, 201}));
     mel_filters_cache[n_mels] = filters;
   }
   else {
@@ -656,6 +656,7 @@ static torch::Tensor mel_filters(torch::Device device, int n_mels) {
 }
 
 torch::Tensor log_mel_spectrogram(
+  const std::string& dir,
   torch::Tensor audio,
   int n_mels /*= 80*/,
   int padding /*= 0*/,
@@ -694,7 +695,7 @@ torch::Tensor log_mel_spectrogram(
   auto magnitudes = stft.slice(-1, 0, -1).abs().pow(2);
   
   // 应用 Mel 滤波器组
-  auto filters = mel_filters(audio.device(), n_mels);
+  auto filters = mel_filters(dir, audio.device(), n_mels);
   auto mel_spec = torch::matmul(filters, magnitudes);
 
   // 对数压缩与归一化
@@ -740,6 +741,12 @@ torch::Tensor kaldi_fbank(torch::Tensor speech) {
   //}
   //return feat_vec_tensor;
   return torch::from_blob(feat_vec.data(), {num_frames, num_bins}, torch::kFloat32).clone();
+}
+
+void frontend_clear_cache() {
+  mel_basis_cache.clear();
+  hann_window_cache.clear();
+  mel_filters_cache.clear();
 }
 
 /* vim: set expandtab nu ts=2 sw=2 sts=2: */
