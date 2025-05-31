@@ -178,7 +178,7 @@ index 97768a4..ff8c627 100644
      def __init__(
          self,
 diff --git a/cosyvoice/flow/flow.py b/cosyvoice/flow/flow.py
-index a068288..9427a63 100644
+index a068288..5b90487 100644
 --- a/cosyvoice/flow/flow.py
 +++ b/cosyvoice/flow/flow.py
 @@ -13,7 +13,7 @@
@@ -190,8 +190,11 @@ index a068288..9427a63 100644
  import torch
  import torch.nn as nn
  from torch.nn import functional as F
-@@ -59,9 +59,11 @@ class MaskedDiffWithXvec(torch.nn.Module):
+@@ -57,11 +57,14 @@ class MaskedDiffWithXvec(torch.nn.Module):
+         self.length_regulator = length_regulator
+         self.only_mask_loss = only_mask_loss
  
++    '''
      def forward(
              self,
 -            batch: dict,
@@ -205,7 +208,7 @@ index a068288..9427a63 100644
          token = batch['speech_token'].to(device)
          token_len = batch['speech_token_len'].to(device)
          feat = batch['speech_feat'].to(device)
-@@ -84,9 +86,11 @@ class MaskedDiffWithXvec(torch.nn.Module):
+@@ -84,9 +87,11 @@ class MaskedDiffWithXvec(torch.nn.Module):
          # get conditions
          conds = torch.zeros(feat.shape, device=token.device)
          for i, j in enumerate(feat_len):
@@ -219,15 +222,14 @@ index a068288..9427a63 100644
              conds[i, :index] = feat[i, :index]
          conds = conds.transpose(1, 2)
  
-@@ -101,16 +105,18 @@ class MaskedDiffWithXvec(torch.nn.Module):
+@@ -100,17 +105,21 @@ class MaskedDiffWithXvec(torch.nn.Module):
+             cond=conds
          )
          return {'loss': loss}
++    '''
  
 -    @torch.inference_mode()
-+    #@torch.inference_mode()
-+    #@torch.no_grad()
-+    @torch.jit.export
-     def inference(self,
+-    def inference(self,
 -                  token,
 -                  token_len,
 -                  prompt_token,
@@ -236,6 +238,11 @@ index a068288..9427a63 100644
 -                  prompt_feat_len,
 -                  embedding,
 -                  flow_cache):
++    #@torch.inference_mode()
++    #@torch.no_grad()
++    @torch.jit.export
++    #def inference(self,
++    def forward(self,
 +                  token:torch.Tensor,
 +                  token_len:torch.Tensor,
 +                  prompt_token:torch.Tensor,
@@ -247,7 +254,7 @@ index a068288..9427a63 100644
          assert token.shape[0] == 1
          # xvec projection
          embedding = F.normalize(embedding, dim=1)
-@@ -134,6 +140,14 @@ class MaskedDiffWithXvec(torch.nn.Module):
+@@ -134,6 +143,14 @@ class MaskedDiffWithXvec(torch.nn.Module):
          conds = conds.transpose(1, 2)
  
          mask = (~make_pad_mask(torch.tensor([mel_len1 + mel_len2]))).to(h)

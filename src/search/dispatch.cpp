@@ -8,6 +8,7 @@
 #include "dispatch.h"
 #include <crypt_utils.h>
 #include <file_utils.h>
+#include <timer.h>
 #include "audio_utils.h"
 #include "frontend_utils.h"
 #include "frontend_audio_utils.h"
@@ -17,7 +18,7 @@ static InferenceZeroShot *_infer = NULL;
 
 void InitAudio() {
   LOG(INFO) << "InitAudio Start...";
-  _infer = new InferenceZeroShot("./data", false);
+  _infer = new InferenceZeroShot("./data", true);
   std::vector<float> prompt_speech_16k;
   int channels = 0;
   {
@@ -28,9 +29,14 @@ void InitAudio() {
     LOG(INFO) << "Len[" << prompt_speech_16k.size() << "]";
     unlink(output_path.c_str());
   }
-  const std::string& tts_text = "今天天气真的很不错，风和日丽";
-  const std::string& prompt_text = "2024年，我们一起走过春夏秋冬，一道经历风雨彩虹，一个个瞬间定格在这不平凡的一年，令人感慨、难以忘怀。";
-  _infer->inference_zero_shot(tts_text, prompt_text, prompt_speech_16k);
+  for (int i = 0; i < 10; i++) {
+    LOG(INFO) << "Warm Up[" << i << "]";
+    uint64_t time_start = mycommon::getMilliTime();
+    const std::string& tts_text = "今天天气真的很不错，风和日丽，出去玩吧";
+    const std::string& prompt_text = "2024年，我们一起走过春夏秋冬，一道经历风雨彩虹，一个个瞬间定格在这不平凡的一年，令人感慨、难以忘怀。";
+    _infer->inference_zero_shot(tts_text, prompt_text, prompt_speech_16k);
+    LOG(INFO) << "Warm Up[" << i << "] End, Time[" << (mycommon::getMilliTime() - time_start) << "]";
+  }
   LOG(INFO) << "InitAudio End";
   std::string error;
   mycommon::mkdirs("tmp", error);
@@ -62,8 +68,8 @@ int InferAudio(
       LOG(WARNING) << "InferAudio Load[" << path_wav << "] Failed[" << ret << "]";
       return ret;
     }
-    //unlink(path.c_str());
-    //unlink(path_wav.c_str());
+    unlink(path.c_str());
+    unlink(path_wav.c_str());
     LOG(INFO) << "Len[" << prompt_speech_16k.size() << "]";
   }
   std::string output_path = "tmp/output_" + unique_id + ".wav";
@@ -76,7 +82,7 @@ int InferAudio(
   }
   mycommon::file_read(output_path, result);
   LOG(INFO) << "Save Finished";
-  //unlink(output_path.c_str());
+  unlink(output_path.c_str());
   return 0;
 }
 

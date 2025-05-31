@@ -1,5 +1,5 @@
 diff --git a/cosyvoice/llm/llm.py b/cosyvoice/llm/llm.py
-index 6891b33..f58ee49 100644
+index 6891b33..9d4b67f 100644
 --- a/cosyvoice/llm/llm.py
 +++ b/cosyvoice/llm/llm.py
 @@ -22,9 +22,9 @@ from torch import nn
@@ -46,7 +46,7 @@ index 6891b33..f58ee49 100644
  
      def encode(
              self,
-@@ -91,12 +92,12 @@ class TransformerLM(torch.nn.Module):
+@@ -91,12 +92,13 @@ class TransformerLM(torch.nn.Module):
          lm_input = [torch.concat([sos_eos_emb.squeeze(dim=0), embedding[i], text_token[i], task_id_emb.squeeze(dim=0), speech_token[i]], dim=0)
                      for i in range(len(text_token))]
          lm_input_len = torch.tensor([i.size(0) for i in lm_input], dtype=torch.int32)
@@ -54,6 +54,7 @@ index 6891b33..f58ee49 100644
 +        lm_input = pad_sequence(lm_input, batch_first=True, padding_value=float(self.IGNORE_ID))
          return lm_input, lm_input_len
  
++    '''
      def forward(
              self,
 -            batch: dict,
@@ -61,7 +62,7 @@ index 6891b33..f58ee49 100644
              device: torch.device,
      ) -> Dict[str, Optional[torch.Tensor]]:
          """
-@@ -113,9 +114,15 @@ class TransformerLM(torch.nn.Module):
+@@ -113,9 +115,15 @@ class TransformerLM(torch.nn.Module):
          embedding = batch['embedding'].to(device)
  
          # 1. prepare llm_target
@@ -80,13 +81,14 @@ index 6891b33..f58ee49 100644
  
          # 1. encode text_token
          text_token = self.text_embedding(text_token)
-@@ -141,27 +148,32 @@ class TransformerLM(torch.nn.Module):
+@@ -141,28 +149,35 @@ class TransformerLM(torch.nn.Module):
          lm_output, lm_output_mask = self.llm(lm_input, lm_input_len.to(device))
          logits = self.llm_decoder(lm_output)
          loss = self.criterion_ce(logits, lm_target)
 -        acc = th_accuracy(logits.view(-1, self.speech_token_size + 1), lm_target, ignore_label=IGNORE_ID)
 +        acc = th_accuracy(logits.view(-1, self.speech_token_size + 1), lm_target, ignore_label=self.IGNORE_ID)
          return {'loss': loss, 'acc': acc}
++    '''
  
      def sampling_ids(
              self,
@@ -114,12 +116,15 @@ index 6891b33..f58ee49 100644
 +        return torch.tensor(0)
  
 -    @torch.inference_mode()
+-    def inference(
 +    @torch.jit.export
 +    #@torch.inference_mode()
-     def inference(
++    #def inference(
++    def forward(
              self,
              text: torch.Tensor,
-@@ -175,15 +187,20 @@ class TransformerLM(torch.nn.Module):
+             text_len: torch.Tensor,
+@@ -175,15 +190,20 @@ class TransformerLM(torch.nn.Module):
              max_token_text_ratio: float = 20,
              min_token_text_ratio: float = 2,
              uuid: str = '',
@@ -141,7 +146,7 @@ index 6891b33..f58ee49 100644
          # 2. encode embedding
          if embedding.shape[0] != 0:
              embedding = F.normalize(embedding, dim=1)
-@@ -191,41 +208,59 @@ class TransformerLM(torch.nn.Module):
+@@ -191,41 +211,62 @@ class TransformerLM(torch.nn.Module):
              embedding = embedding.unsqueeze(dim=1)
          else:
              embedding = torch.zeros(1, 0, self.llm_input_size, dtype=text.dtype).to(device).to(text.dtype)
@@ -173,6 +178,9 @@ index 6891b33..f58ee49 100644
          offset = 0
          att_cache, cnn_cache = torch.zeros((0, 0, 0, 0), device=lm_input.device), torch.zeros((0, 0, 0, 0), device=lm_input.device)
          for i in range(max_len):
++        #for i in range(500):
++            #if i >= max_len:
++            #    continue
 +            #print("inference 5, %d A" % i)
              y_pred, att_cache, cnn_cache = self.llm.forward_chunk(lm_input, offset=offset, required_cache_size=-1,
                                                                    att_cache=att_cache, cnn_cache=cnn_cache,
@@ -207,7 +215,7 @@ index 6891b33..f58ee49 100644
  
  
  class Qwen2Encoder(torch.nn.Module):
-@@ -272,6 +307,7 @@ class Qwen2LM(TransformerLM):
+@@ -272,6 +313,7 @@ class Qwen2LM(TransformerLM):
              mix_ratio: List[int] = [5, 15],
      ):
          torch.nn.Module.__init__(self)
@@ -215,7 +223,7 @@ index 6891b33..f58ee49 100644
          self.llm_input_size = llm_input_size
          self.llm_output_size = llm_output_size
          self.speech_token_size = speech_token_size
-@@ -285,7 +321,7 @@ class Qwen2LM(TransformerLM):
+@@ -285,7 +327,7 @@ class Qwen2LM(TransformerLM):
          self.llm_decoder = nn.Linear(llm_output_size, speech_token_size + 3)
          self.criterion_ce = LabelSmoothingLoss(
              size=speech_token_size + 3,
@@ -224,7 +232,7 @@ index 6891b33..f58ee49 100644
              smoothing=lsm_weight,
              normalize_length=length_normalized_loss,
          )
-@@ -311,14 +347,14 @@ class Qwen2LM(TransformerLM):
+@@ -311,14 +353,14 @@ class Qwen2LM(TransformerLM):
              # bistream sequence
              if random.random() < 0.5 and speech_token_len[i] / text_token_len[i] > self.mix_ratio[1] / self.mix_ratio[0]:
                  this_lm_target, this_lm_input = [], []
@@ -241,7 +249,7 @@ index 6891b33..f58ee49 100644
                          this_lm_target += this_speech_token
                          this_lm_target.append(self.speech_token_size + 2)
                          this_lm_input.append(text_token_emb[i][j * self.mix_ratio[0]: (j + 1) * self.mix_ratio[0]])
-@@ -333,14 +369,14 @@ class Qwen2LM(TransformerLM):
+@@ -333,14 +375,14 @@ class Qwen2LM(TransformerLM):
                  this_lm_target, this_lm_input = torch.tensor(this_lm_target), torch.concat(this_lm_input, dim=0)
              # unistream sequence
              else:
@@ -259,7 +267,7 @@ index 6891b33..f58ee49 100644
          return lm_target, lm_input, lm_input_len
  
      def forward(
-@@ -374,7 +410,7 @@ class Qwen2LM(TransformerLM):
+@@ -374,7 +416,7 @@ class Qwen2LM(TransformerLM):
          lm_output, lm_output_mask = self.llm(lm_input, lm_input_len.to(device))
          logits = self.llm_decoder(lm_output)
          loss = self.criterion_ce(logits, lm_target.to(device))
@@ -268,7 +276,7 @@ index 6891b33..f58ee49 100644
          return {'loss': loss, 'acc': acc}
  
      def forward_dpo(
-@@ -413,11 +449,11 @@ class Qwen2LM(TransformerLM):
+@@ -413,11 +455,11 @@ class Qwen2LM(TransformerLM):
          chosen_lm_target = lm_target[:text_token.shape[0]]
          rejected_lm_target = lm_target[text_token.shape[0]:]
          loss = self.criterion_ce(chosen_logits, chosen_lm_target.to(device))
@@ -284,7 +292,7 @@ index 6891b33..f58ee49 100644
          rejected_logps = torch.gather(rejected_logits.log_softmax(dim=-1), dim=2, index=rejected_lm_target.masked_fill(rejected_lm_mask, 0).unsqueeze(dim=-1)).squeeze(dim=-1)
          chosen_logps = (chosen_logps * chosen_lm_mask).sum(dim=-1) / chosen_lm_mask.sum(dim=-1)
 diff --git a/cosyvoice/utils/common.py b/cosyvoice/utils/common.py
-index 6f5a3dd..3e6faff 100644
+index 6f5a3dd..b4ce4f6 100644
 --- a/cosyvoice/utils/common.py
 +++ b/cosyvoice/utils/common.py
 @@ -108,33 +108,50 @@ def init_weights(m, mean=0.0, std=0.01):
@@ -296,8 +304,9 @@ index 6f5a3dd..3e6faff 100644
 +    #print(f"ras_sampling 1: {weighted_scores}")
 +    #print(f"ras_sampling 1-1: {top_p} {top_k}")
      top_ids = nucleus_sampling(weighted_scores, top_p=top_p, top_k=top_k)
+-    rep_num = (torch.tensor(decoded_tokens[-win_size:]).to(weighted_scores.device) == top_ids).sum().item()
 +    #print(f"ras_sampling 2: {top_ids}")
-     rep_num = (torch.tensor(decoded_tokens[-win_size:]).to(weighted_scores.device) == top_ids).sum().item()
++    rep_num = (torch.tensor(decoded_tokens[-win_size:], dtype=torch.long).to(weighted_scores.device) == top_ids).sum().item()
 +    #print(f"ras_sampling 3: {rep_num}")
      if rep_num >= win_size * tau_r:
 +        #print("ras_sampling 4: {rep_num}")

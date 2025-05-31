@@ -81,8 +81,8 @@ void InferenceZeroShot::run() {
   LOG(INFO) << "InferenceZeroShot::run Init Model";
   std::string llm_model_path = mycommon::str_format("%s/model/llm.fp%d.jit", _dir.c_str(), _is_fp16 ? 16 : 32);
   std::string flow_model_path = mycommon::str_format("%s/model/flow.fp%d.jit", _dir.c_str(), _is_fp16 ? 16 : 32);
-  std::string hift_model_path = mycommon::str_format("%s/model/hift.fp%d.jit", _dir.c_str(), _is_fp16 ? 16 : 32);
-  _model = std::make_unique<VoiceModel>();
+  std::string hift_model_path = mycommon::str_format("%s/model/hift.fp%d.jit", _dir.c_str(), /*_is_fp16 ? 16 :*/ 32);
+  _model = std::make_unique<VoiceModel>(_is_fp16);
   _model->load(llm_model_path, flow_model_path, hift_model_path);
   LOG(INFO) << "InferenceZeroShot::run End";
   
@@ -177,7 +177,7 @@ void InferenceZeroShot::run() {
           infer_result.prompt_text.to(torch::kCUDA),
           infer_result.prompt_speech_token.to(torch::kCUDA),
           infer_result.prompt_speech_feat.to(torch::kCUDA),
-          infer_result.embedding.to(torch::kCUDA),
+          _is_fp16 ? infer_result.embedding.to(torch::kHalf).to(torch::kCUDA) : infer_result.embedding.to(torch::kCUDA),
 #else
           infer_result.text,
           infer_result.prompt_text,

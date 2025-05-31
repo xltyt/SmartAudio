@@ -45,7 +45,7 @@ index 5797c31..05b6f56 100644
          )
          self.classifier = nn.Linear(in_features=cond_channels, out_features=self.num_class)
 diff --git a/cosyvoice/hifigan/generator.py b/cosyvoice/hifigan/generator.py
-index 326a1a7..f2d9ea6 100644
+index 326a1a7..ba96e15 100644
 --- a/cosyvoice/hifigan/generator.py
 +++ b/cosyvoice/hifigan/generator.py
 @@ -14,20 +14,13 @@
@@ -173,7 +173,7 @@ index 326a1a7..f2d9ea6 100644
 +        low = -torch.pi
 +        high = torch.pi
 +        sample_shape = (f0.size(0), self.harmonic_num + 1, 1)
-+        phase_vec = low + (high - low) * torch.rand(sample_shape, device=F_mat.device, dtype=F_mat.dtype)
++        phase_vec = low + (high - low) * torch.rand(sample_shape, device=F_mat.device)
 +
          phase_vec[:, 0, :] = 0
  
@@ -326,8 +326,11 @@ index 326a1a7..f2d9ea6 100644
  
          x = F.leaky_relu(x)
          x = self.conv_post(x)
-@@ -553,9 +559,9 @@ class HiFTGenerator(nn.Module):
+@@ -551,11 +557,12 @@ class HiFTGenerator(nn.Module):
+         x = torch.clamp(x, -self.audio_limit, self.audio_limit)
+         return x
  
++    '''
      def forward(
              self,
 -            batch: dict,
@@ -338,15 +341,18 @@ index 326a1a7..f2d9ea6 100644
          speech_feat = batch['speech_feat'].transpose(1, 2).to(device)
          # mel->f0
          f0 = self.f0_predictor(speech_feat)
-@@ -567,16 +573,24 @@ class HiFTGenerator(nn.Module):
+@@ -566,17 +573,27 @@ class HiFTGenerator(nn.Module):
+         # mel+source->speech
          generated_speech = self.decode(x=speech_feat, s=s)
          return generated_speech, f0
++    '''
  
 -    @torch.inference_mode()
 -    def inference(self, speech_feat: torch.Tensor, cache_source: torch.Tensor = torch.zeros(1, 1, 0)) -> torch.Tensor:
 +    #@torch.inference_mode()
 +    @torch.jit.export
-+    def inference(self, speech_feat: torch.Tensor, cache_source: torch.Tensor = torch.zeros(1, 1, 0)) -> Tuple[torch.Tensor, torch.Tensor]:
++    #def inference(self, speech_feat: torch.Tensor, cache_source: torch.Tensor = torch.zeros(1, 1, 0)) -> Tuple[torch.Tensor, torch.Tensor]:
++    def forward(self, speech_feat: torch.Tensor, cache_source: torch.Tensor = torch.zeros(1, 1, 0)) -> Tuple[torch.Tensor, torch.Tensor]:
 +        #print("inference 1")
          # mel->f0
          f0 = self.f0_predictor(speech_feat)

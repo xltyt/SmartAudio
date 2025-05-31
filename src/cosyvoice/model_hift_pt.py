@@ -34,19 +34,8 @@ with torch.no_grad():
   with open(hyper_yaml_path, 'r') as f:
     configs = load_hyperpyyaml(f)
   hift = configs["hift"]
-  hift.half()
   hift.load_state_dict(torch.load("%s/hift.pt" % model_dir, map_location=device), strict=True)
   hift.to(device).eval()
   hift = fuse_weight_norm(hift)
-  torch.save(hift.state_dict(), "%s/hift.fp16.pt" % target_model_dir)
-
-with torch.no_grad():
-  # Remove parametrizations
-  with open(hyper_yaml_path, 'r') as f:
-    configs = load_hyperpyyaml(f)
-  hift = configs["hift"]
-  hift.load_state_dict(torch.load("%s/hift.pt" % model_dir, map_location=device), strict=True)
-  hift.to(device).eval()
-  hift = fuse_weight_norm(hift)
-  torch.save(hift.state_dict(), "%s/hift.fp32.pt" % target_model_dir)
+  torch.save(hift.state_dict(), "%s/hift_no_weight.pt" % target_model_dir)
 

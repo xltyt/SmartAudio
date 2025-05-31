@@ -71,23 +71,42 @@ int Frontend::frontend_zero_shot(
   int sample_rate,
   ZeroShotInput& result
   ) {
+  LOG(INFO) << "Frontend::frontend_zero_shot Extract Text Token";
   auto [tts_text_token, tts_text_token_len] = extract_text_token(tts_text);
+  
+  LOG(INFO) << "Frontend::frontend_zero_shot Extract Prompt Token";
   auto [prompt_text_token, prompt_text_token_len] = extract_text_token(prompt_text);
   int channels = 0;
+  LOG(INFO) << "Frontend::frontend_zero_shot Resample";
   std::vector<float> prompt_speech_resample = ::resample(prompt_speech_16k, 16000, sample_rate, channels);
   
-  auto prompt_speech_resample_tensor = torch::zeros({1, (int)prompt_speech_resample.size()}, torch::kFloat32);
-  for (int i = 0; i < (int)prompt_speech_resample.size(); ++i) {
-    prompt_speech_resample_tensor[0][i] = prompt_speech_resample[i];
-  }
+  LOG(INFO) << "Frontend::frontend_zero_shot Extract Feat Build";
+  //auto prompt_speech_resample_tensor = torch::zeros({1, (int)prompt_speech_resample.size()}, torch::kFloat32);
+  //for (int i = 0; i < (int)prompt_speech_resample.size(); ++i) {
+  //  prompt_speech_resample_tensor[0][i] = prompt_speech_resample[i];
+  //}
+  auto prompt_speech_resample_tensor = torch::from_blob(
+  	prompt_speech_resample.data(),
+    {1, (int)prompt_speech_resample.size()},
+    torch::kFloat32
+	);
+  LOG(INFO) << "Frontend::frontend_zero_shot Extract Feat";
   auto [speech_feat, speech_feat_len] = ::extract_speech_feat(prompt_speech_resample_tensor);
   
-  auto prompt_speech_16k_tensor = torch::zeros({1, (int)prompt_speech_16k.size()}, torch::kFloat32);
-  for (int i = 0; i < (int)prompt_speech_16k.size(); ++i) {
-    prompt_speech_16k_tensor[0][i] = prompt_speech_16k[i];
-  }
+  LOG(INFO) << "Frontend::frontend_zero_shot Speech Token Build";
+  //auto prompt_speech_16k_tensor = torch::zeros({1, (int)prompt_speech_16k.size()}, torch::kFloat32);
+  //for (int i = 0; i < (int)prompt_speech_16k.size(); ++i) {
+  //  prompt_speech_16k_tensor[0][i] = prompt_speech_16k[i];
+  //}
+  auto prompt_speech_16k_tensor = torch::from_blob(
+  	(void *)prompt_speech_16k.data(),
+    {1, (int)prompt_speech_16k.size()},
+    torch::kFloat32
+	);
+  LOG(INFO) << "Frontend::frontend_zero_shot Speech Token";
   auto [speech_token, speech_token_len] = extract_speech_token(prompt_speech_16k_tensor);
   
+  LOG(INFO) << "Frontend::frontend_zero_shot Spk Embedding";
   auto spk_embedding = extract_spk_embedding(prompt_speech_16k_tensor);
   
   result.text = tts_text_token;
@@ -100,6 +119,7 @@ int Frontend::frontend_zero_shot(
   result.prompt_speech_feat_len = speech_feat_len;
   result.embedding = spk_embedding;
   
+  LOG(INFO) << "Frontend::frontend_zero_shot End";
   return 0;
 }
   

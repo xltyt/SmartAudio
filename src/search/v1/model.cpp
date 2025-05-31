@@ -7,7 +7,8 @@
 
 #include "model.h"
 
-VoiceModel::VoiceModel() {
+VoiceModel::VoiceModel(bool is_fp16) {
+  _is_fp16 = is_fp16;
 }
 
 VoiceModel::~VoiceModel() {
@@ -26,6 +27,10 @@ int VoiceModel::load(const std::string& llm_model_path, const std::string& flow_
   }
   
   torch::autograd::GradMode::set_enabled(false);
+  //torch::jit::setGraphExecutorOptimize(false);
+
+  //at::set_num_threads(1);
+  //at::set_num_interop_threads(1);
   {
     //_llm = std::make_unique<torch::nn::Module>();
     //_llm->to(torch::kCPU);
@@ -34,32 +39,42 @@ int VoiceModel::load(const std::string& llm_model_path, const std::string& flow_
     //_llm->load(input_archive);
     //_llm->to(torch::kCPU);
     //_llm->eval();
-    torch::jit::script::Module llm = torch::jit::load(llm_model_path, torch::kCPU);
-    _llm = std::make_unique<torch::jit::script::Module>(llm);
 #if USE_GPU
-    _llm->to(torch::kCUDA);
+    torch::jit::script::Module llm = torch::jit::load(llm_model_path, torch::kCUDA);
+#else
+    torch::jit::script::Module llm = torch::jit::load(llm_model_path, torch::kCPU);
 #endif
-    _llm->eval();
+		//llm = torch::jit::optimize_for_inference(llm, std::vector<std::string>({"inference"}));
+		llm = torch::jit::optimize_for_inference(llm);
+    _llm = std::make_unique<torch::jit::script::Module>(std::move(llm));
+    //_llm->eval();
   }
   LOG(INFO) << "VoiceModel::load LLM End";
   
   LOG(INFO) << "VoiceModel::load FLow Init";
   {
-    torch::jit::script::Module flow = torch::jit::load(flow_model_path, torch::kCPU);
-    _flow = std::make_unique<torch::jit::script::Module>(flow);
 #if USE_GPU
-    _flow->to(torch::kCUDA);
+    torch::jit::script::Module flow = torch::jit::load(flow_model_path, torch::kCUDA);
+#else
+    torch::jit::script::Module flow = torch::jit::load(flow_model_path, torch::kCPU);
 #endif
-    _flow->eval();
+		flow = torch::jit::optimize_for_inference(flow);
+    _flow = std::make_unique<torch::jit::script::Module>(std::move(flow));
+    //_flow->eval();
     _flow_cache_dict = torch::zeros({1, 80, 0, 2}, torch::kFloat32);
   }
   LOG(INFO) << "VoiceModel::load Flow End";
 
   LOG(INFO) << "VoiceModel::load Hift Init";
   {
+#if USE_GPU
+    torch::jit::script::Module hift = torch::jit::load(hift_model_path, torch::kCUDA);
+#else
     torch::jit::script::Module hift = torch::jit::load(hift_model_path, torch::kCPU);
-    _hift = std::make_unique<torch::jit::script::Module>(hift);
-    _hift->eval();
+#endif
+		hift = torch::jit::optimize_for_inference(hift);
+    _hift = std::make_unique<torch::jit::script::Module>(std::move(hift));
+    //_hift->eval();
     _hift_cache_source = torch::zeros({1, 1, 0}, torch::kFloat32);
   }
   LOG(INFO) << "VoiceModel::load Hift End";
@@ -76,6 +91,7 @@ int VoiceModel::tts(
   float speed,
   std::vector<float>& wav_data
   ) {
+  LOG(INFO) << "VoiceModel::tts LLM Start";
 	std::vector<int64_t> output_ids;
   try {
     infer_llm(
@@ -90,6 +106,8 @@ int VoiceModel::tts(
     LOG(WARNING) << "VoiceModel::tts Infer LLM Failed[" << e.what() << "]";
     return -1;
 	}
+  LOG(INFO) << "VoiceModel::tts LLM End";
+  LOG(INFO) << "VoiceModel::tts Flow Start";
   torch::Tensor tts_mel;
   try {
     infer_flow(
@@ -105,11 +123,13 @@ int VoiceModel::tts(
     LOG(WARNING) << "VoiceModel::tts Infer Flow Failed[" << e.what() << "]";
     return -1;
 	}
+  LOG(INFO) << "VoiceModel::tts Flow End";
+  LOG(INFO) << "VoiceModel::tts Hift Start";
   torch::Tensor tts_speech;
 	torch::Tensor tts_source;
   try {
     infer_hift(
-      tts_mel.to(torch::kCPU),
+      tts_mel,
       tts_speech,
       tts_source
       );
@@ -118,6 +138,7 @@ int VoiceModel::tts(
     LOG(WARNING) << "VoiceModel::tts Infer Hift Failed[" << e.what() << "]";
     return -1;
 	}
+  LOG(INFO) << "VoiceModel::tts Hift End";
   if (tts_speech.dim() != 2 || tts_speech.sizes()[0] != 1) {
     LOG(WARNING) << "VoiceModel::tts Infer Hift Return Invalid";
     return -1;
@@ -134,19 +155,20 @@ int VoiceModel::infer_llm(
   const torch::Tensor& embedding,
 	std::vector<int64_t>& output
   ) {
+  torch::NoGradGuard no_grad;
   std::vector<torch::jit::IValue> inputs;
-  inputs.push_back(text.detach());
-  inputs.push_back(torch::tensor({text.size(1)}, torch::kInt32).to(text.device()).detach());
-  inputs.push_back(prompt_text.detach());
-  inputs.push_back(torch::tensor({prompt_text.size(1)}, torch::kInt32).to(prompt_text.device()).detach());
-  inputs.push_back(prompt_speech_token.detach());
-  inputs.push_back(torch::tensor({prompt_speech_token.size(1)}, torch::kInt32).to(prompt_speech_token.device()).detach());
-  inputs.push_back(embedding.detach());
+  inputs.push_back(text);
+  inputs.push_back(torch::tensor({text.size(1)}, torch::kInt32).to(text.device()));
+  inputs.push_back(prompt_text);
+  inputs.push_back(torch::tensor({prompt_text.size(1)}, torch::kInt32).to(prompt_text.device()));
+  inputs.push_back(prompt_speech_token);
+  inputs.push_back(torch::tensor({prompt_speech_token.size(1)}, torch::kInt32).to(prompt_speech_token.device()));
+  inputs.push_back(embedding);
   inputs.push_back(25);          // sampling
   inputs.push_back(20.0);        // max_token_text_ratio
   inputs.push_back(2.0);         // min_token_text_ratio
-  //torch::NoGradGuard no_grad;
-  output = _llm->get_method("inference")(inputs).toIntVector();
+  //output = _llm->get_method("inference")(inputs).toIntVector();
+  output = _llm->forward(inputs).toIntVector();
   return 0;
 }
   
@@ -158,18 +180,19 @@ int VoiceModel::infer_flow(
 	float speed,
 	torch::Tensor& tts_mel
 	) {
+  torch::NoGradGuard no_grad;
   torch::Tensor this_tts_speech_token = torch::Tensor(token).unsqueeze(0);
 	std::vector<torch::jit::IValue> inputs;
-  inputs.push_back(this_tts_speech_token.detach());
-  inputs.push_back(torch::tensor({this_tts_speech_token.size(1)}, torch::kInt32).to(token.device()).detach());
-  inputs.push_back(prompt_speech_token.detach());
-  inputs.push_back(torch::tensor({prompt_speech_token.size(1)}, torch::kInt32).to(prompt_speech_token.device()).detach());
-  inputs.push_back(prompt_speech_feat.detach());
-  inputs.push_back(torch::tensor({prompt_speech_token.size(1)}, torch::kInt32).to(prompt_speech_feat.device()).detach());
-  inputs.push_back(embedding.to(token.device()).detach());
-  inputs.push_back(_flow_cache_dict.to(token.device()).detach());
-  //torch::NoGradGuard no_grad;
-  auto output_elements = _flow->get_method("inference")(inputs).toTuple()->elements();
+  inputs.push_back(this_tts_speech_token);
+  inputs.push_back(torch::tensor({this_tts_speech_token.size(1)}, torch::kInt32).to(token.device()));
+  inputs.push_back(prompt_speech_token);
+  inputs.push_back(torch::tensor({prompt_speech_token.size(1)}, torch::kInt32).to(prompt_speech_token.device()));
+  inputs.push_back(prompt_speech_feat);
+  inputs.push_back(torch::tensor({prompt_speech_token.size(1)}, torch::kInt32).to(prompt_speech_feat.device()));
+  inputs.push_back(embedding);
+  inputs.push_back(_flow_cache_dict.to(token.device()));
+  //auto output_elements = _flow->get_method("inference")(inputs).toTuple()->elements();
+  auto output_elements = _flow->forward(inputs).toTuple()->elements();
   tts_mel = output_elements[0].toTensor();
   //_flow_cache_dict = output_elements[1].toTensor();
   return 0;
@@ -180,10 +203,18 @@ int VoiceModel::infer_hift(
 	torch::Tensor& tts_speech,
 	torch::Tensor& tts_source
   ) {
+  torch::NoGradGuard no_grad;
 	std::vector<torch::jit::IValue> inputs;
-  inputs.push_back(speech_feat.detach());
-  inputs.push_back(_hift_cache_source.to(speech_feat.device()).detach());
-  auto output_elements = _hift->get_method("inference")(inputs).toTuple()->elements();
+  //if (_is_fp16) {
+  //  inputs.push_back(speech_feat.to(torch::kHalf).detach());
+  //}
+  //else {
+  //  inputs.push_back(speech_feat.detach());
+  //}
+  inputs.push_back(speech_feat);
+  inputs.push_back(_hift_cache_source.to(speech_feat.device()));
+  //auto output_elements = _hift->get_method("inference")(inputs).toTuple()->elements();
+  auto output_elements = _hift->forward(inputs).toTuple()->elements();
   tts_speech = output_elements[0].toTensor();
   //_hift_cache_source = output_elements[1].toTensor();
 	return 0;

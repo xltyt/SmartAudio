@@ -15,7 +15,7 @@
 
 class VoiceModel {
 public:
-  VoiceModel();
+  VoiceModel(bool is_fp16);
   virtual ~VoiceModel();
 
 public:
@@ -53,6 +53,7 @@ public:
     );
 
 protected:
+  bool _is_fp16 = true;
   std::unique_ptr<torch::jit::script::Module> _llm;
   std::unique_ptr<torch::jit::script::Module> _flow;
   std::unique_ptr<torch::jit::script::Module> _hift;

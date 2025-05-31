@@ -579,6 +579,7 @@ std::pair<torch::Tensor, torch::Tensor> extract_speech_feat(const torch::Tensor&
   return speech_feat, speech_feat_len
   */
 
+  LOG(INFO) << "extract_speech_feat";
   int n_fft = 1024;
   int num_mels = 80;
   int sampling_rate = 22050;
@@ -589,6 +590,7 @@ std::pair<torch::Tensor, torch::Tensor> extract_speech_feat(const torch::Tensor&
   bool center = false;
 
   // 计算梅尔频谱
+  LOG(INFO) << "mel_spectrogram";
   torch::Tensor speech_feat = mel_spectrogram(
     speech, 
     n_fft, 
@@ -601,6 +603,7 @@ std::pair<torch::Tensor, torch::Tensor> extract_speech_feat(const torch::Tensor&
     center
     );
 
+  LOG(INFO) << "mel_spectrogram 1";
   // 维度调整
   // speech_feat 原始形状: [1, n_mels, time_frames]
   speech_feat = speech_feat.squeeze(0);          // 移除批次维度 -> [n_mels, time_frames]
@@ -616,6 +619,7 @@ std::pair<torch::Tensor, torch::Tensor> extract_speech_feat(const torch::Tensor&
     torch::TensorOptions().dtype(torch::kInt32));
     //.to(device);
 
+  LOG(INFO) << "mel_spectrogram 2";
   return {speech_feat, speech_feat_len};
 }
 

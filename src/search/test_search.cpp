@@ -496,10 +496,31 @@ TEST(Search, LLM) {
   std::string llm_model_path = "./data/model/llm.fp32.jit";
   std::string flow_model_path = "./data/model/flow.fp32.jit";
   std::string hift_model_path = "./data/model/hift.fp32.jit";
-  VoiceModel model;
+  VoiceModel model(false);
   model.load(llm_model_path, flow_model_path, hift_model_path);
+  for (int i = 0; i < 5; i++) {
+    LOG(INFO) << "Warm Up[" << i << "]";
+    uint64_t time_start = mycommon::getMilliTime();
+    std::vector<int64_t> output;
+    int ret = model.infer_llm(
+#if USE_GPU
+        result.text.to(torch::kCUDA),
+        result.prompt_text.to(torch::kCUDA),
+        result.prompt_speech_token.to(torch::kCUDA),
+        result.embedding.to(torch::kCUDA),
+#else
+        result.text,
+        result.prompt_text,
+        result.prompt_speech_token,
+        result.embedding,
+#endif
+        output
+        );
+    LOG(INFO) << "Warm Up[" << i << "] End, Time[" << (mycommon::getMilliTime() - time_start) << "]";
+  }
   LOG(INFO) << "LLM Start";
 	std::vector<int64_t> output;
+  uint64_t time_start = mycommon::getMilliTime();
   int ret = model.infer_llm(
 #if USE_GPU
     result.text.to(torch::kCUDA),
@@ -514,11 +535,11 @@ TEST(Search, LLM) {
 #endif
     output
     );
-  LOG(INFO) << "TTS End";
+  LOG(INFO) << "LLM End, Time[" << (mycommon::getMilliTime() - time_start) << "]";
   ASSERT_EQ(0, ret);
-	for (auto _ : output) {
-    LOG(INFO) << _;
-  }
+	//for (auto _ : output) {
+  //  LOG(INFO) << _;
+  //}
 }
 
 TEST(Search, Flow) {
@@ -543,19 +564,47 @@ TEST(Search, Flow) {
     result
     );
 
-  std::string llm_model_path = "../../model/llm.fp32.jit";
-  std::string flow_model_path = "../../model/flow.fp32.jit";
-  std::string hift_model_path = "../../model/hift.fp32.jit";
-  VoiceModel model;
+  std::string llm_model_path = "./data/model/llm.fp32.jit";
+  std::string flow_model_path = "./data/model/flow.fp32.jit";
+  std::string hift_model_path = "./data/model/hift.fp32.jit";
+  VoiceModel model(false);
   model.load(llm_model_path, flow_model_path, hift_model_path);
   LOG(INFO) << "Flow Start";
   std::vector<int> ids = std::vector<int>({149, 1035, 659, 40, 191, 66, 615, 331, 331, 331, 696, 696, 669, 707, 450, 452, 498, 277, 295, 74, 154, 716, 1942, 3254, 42, 392, 380, 172, 557, 175, 286, 594, 187, 2712, 650, 706, 595, 74, 92, 51, 889, 2185, 4022, 4022, 1006, 668, 1035, 1035, 2130, 26, 615, 191, 191, 191, 66, 222, 670, 66, 657, 1191, 436, 578, 611, 615, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 331, 331, 66, 331, 66, 66, 66, 66, 615, 66, 66, 615, 331, 708, 982, 3132, 120, 120, 415, 21, 51, 649, 312, 209, 34, 42, 733, 558, 237, 553, 488, 539, 507, 514, 514, 2579, 537, 533, 2712, 544, 98, 3966, 11, 259, 585, 629, 629, 235, 1059, 203, 648, 681, 1307, 3605, 100, 1228, 67, 1923, 1938, 374, 702, 2712, 124, 544, 392, 546, 621, 167, 399, 56, 56, 750, 42, 723, 77, 125, 407, 574, 114, 304, 24, 433, 552, 533, 434, 653, 562, 166, 523, 477, 120, 192, 482, 302, 2330, 158, 4022, 550, 444, 889, 889, 535, 149, 2130, 2130, 360, 431, 40, 615, 615, 327, 615, 615, 611, 611, 611, 327, 611, 611, 611, 611, 191, 66, 191, 615, 615, 615, 615, 610});
+  for (int i = 0; i < 5; i++) {
+    LOG(INFO) << "Warm Up[" << i << "]";
+    uint64_t time_start = mycommon::getMilliTime();
+    torch::Tensor tts_mel;
+    int ret = model.infer_flow(
+#if USE_GPU
+      torch::tensor(ids, torch::kInt32).to(torch::kCUDA),
+      result.prompt_speech_token.to(torch::kCUDA),
+      result.prompt_speech_feat.to(torch::kCUDA),
+      result.embedding.to(torch::kCUDA),
+#else
+      torch::tensor(ids, torch::kInt32),
+      result.prompt_speech_token,
+      result.prompt_speech_feat,
+      result.embedding,
+#endif
+      1.0,
+      tts_mel
+    );
+    LOG(INFO) << "Warm Up[" << i << "] End, Time[" << (mycommon::getMilliTime() - time_start) << "]";
+  }
   torch::Tensor tts_mel;
   int ret = model.infer_flow(
+#if USE_GPU
+		torch::tensor(ids, torch::kInt32).to(torch::kCUDA),
+		result.prompt_speech_token.to(torch::kCUDA),
+		result.prompt_speech_feat.to(torch::kCUDA),
+		result.embedding.to(torch::kCUDA),
+#else
 		torch::tensor(ids, torch::kInt32),
 		result.prompt_speech_token,
 		result.prompt_speech_feat,
 		result.embedding,
+#endif
 		1.0,
     tts_mel
 	);
@@ -604,7 +653,7 @@ TEST(Search, Hift) {
   std::string llm_model_path = "./data/model/llm.fp32.jit";
   std::string flow_model_path = "./data/model/flow.fp32.jit";
   std::string hift_model_path = "./data/model/hift.fp32.jit";
-  VoiceModel model;
+  VoiceModel model(false);
   model.load(llm_model_path, flow_model_path, hift_model_path);
   LOG(INFO) << "Flow Start";
   std::vector<int> ids = std::vector<int>({149, 1035, 659, 40, 191, 66, 615, 331, 331, 331, 696, 696, 669, 707, 450, 452, 498, 277, 295, 74, 154, 716, 1942, 3254, 42, 392, 380, 172, 557, 175, 286, 594, 187, 2712, 650, 706, 595, 74, 92, 51, 889, 2185, 4022, 4022, 1006, 668, 1035, 1035, 2130, 26, 615, 191, 191, 191, 66, 222, 670, 66, 657, 1191, 436, 578, 611, 615, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 331, 331, 66, 331, 66, 66, 66, 66, 615, 66, 66, 615, 331, 708, 982, 3132, 120, 120, 415, 21, 51, 649, 312, 209, 34, 42, 733, 558, 237, 553, 488, 539, 507, 514, 514, 2579, 537, 533, 2712, 544, 98, 3966, 11, 259, 585, 629, 629, 235, 1059, 203, 648, 681, 1307, 3605, 100, 1228, 67, 1923, 1938, 374, 702, 2712, 124, 544, 392, 546, 621, 167, 399, 56, 56, 750, 42, 723, 77, 125, 407, 574, 114, 304, 24, 433, 552, 533, 434, 653, 562, 166, 523, 477, 120, 192, 482, 302, 2330, 158, 4022, 550, 444, 889, 889, 535, 149, 2130, 2130, 360, 431, 40, 615, 615, 327, 615, 615, 611, 611, 611, 327, 611, 611, 611, 611, 191, 66, 191, 615, 615, 615, 615, 610});
@@ -633,7 +682,11 @@ TEST(Search, Hift) {
   torch::Tensor tts_speech;
 	torch::Tensor tts_source;
   ret = model.infer_hift(
+#if USE_GPU
+		tts_mel.to(torch::kCUDA),
+#else
 		tts_mel.to(torch::kCPU),
+#endif
 		tts_speech,
 		tts_source
     );
@@ -680,7 +733,7 @@ TEST(Search, Model) {
   std::string llm_model_path = "./data/model/llm.fp32.jit";
   std::string flow_model_path = "./data/model/flow.fp32.jit";
   std::string hift_model_path = "./data/model/hift.fp32.jit";
-  VoiceModel model;
+  VoiceModel model(false);
   model.load(llm_model_path, flow_model_path, hift_model_path);
   LOG(INFO) << "TTS Start";
   std::vector<float> wav_data;
@@ -726,6 +779,15 @@ TEST(Search, Infer) {
     const std::string& prompt_text = "2024年，我们一起走过春夏秋冬，一道经历风雨彩虹，一个个瞬间定格在这不平凡的一年，令人感慨、难以忘怀。";
     std::vector<float> wav_data = infer.inference_zero_shot(tts_text, prompt_text, prompt_speech_16k);
     int ret = SaveWav("/tmp/infer_output.wav", 22050, wav_data, 1);
+    ASSERT_EQ(0, ret);
+    LOG(INFO) << "Save Success";
+  }
+  {
+    InferenceZeroShot infer("./data", true);
+    const std::string& tts_text = "主席说我开飞机的水平很高";
+    const std::string& prompt_text = "2024年，我们一起走过春夏秋冬，一道经历风雨彩虹，一个个瞬间定格在这不平凡的一年，令人感慨、难以忘怀。";
+    std::vector<float> wav_data = infer.inference_zero_shot(tts_text, prompt_text, prompt_speech_16k);
+    int ret = SaveWav("/tmp/infer_output_fp16.wav", 22050, wav_data, 1);
     ASSERT_EQ(0, ret);
     LOG(INFO) << "Save Success";
   }
