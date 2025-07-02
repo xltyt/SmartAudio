@@ -1,0 +1,117 @@
+diff -ruNa appweb-7.0.1-ori/src/http/http.c appweb-7.0.1/src/http/http.c
+--- appweb-7.0.1-ori/src/http/http.c	2017-09-28 11:36:09.000000000 +0800
++++ appweb-7.0.1/src/http/http.c	2021-10-04 00:13:49.147826190 +0800
+@@ -985,6 +985,7 @@
+ 
+     assert(url && *url);
+ 
++    printf("doRequest\n");
+     if (issueRequest(conn, url, files) < 0) {
+         if (conn->rx && conn->rx->status) {
+             reportResponse(conn, url);
+diff -ruNa appweb-7.0.1-ori/src/http/httpLib.c appweb-7.0.1/src/http/httpLib.c
+--- appweb-7.0.1-ori/src/http/httpLib.c	2017-09-28 11:36:09.000000000 +0800
++++ appweb-7.0.1/src/http/httpLib.c	2021-10-04 01:03:03.713011616 +0800
+@@ -16044,7 +16044,9 @@
+     }
+     if (httpServerConn(conn)) {
+         hostname = rx->hostHeader;
++        printf("parseIncoming Host[%s]\n", hostname);
+         if (schr(rx->hostHeader, ':')) {
++            printf("parseIncoming Host[%s] Process\n", hostname);
+             mprParseSocketAddress(rx->hostHeader, &hostname, NULL, NULL, 0);
+         }
+         if ((conn->host = httpMatchHost(conn, hostname)) == 0) {
+@@ -17322,12 +17324,20 @@
+         if (!hostname) {
+             hostname = conn->sock->acceptIp;
+         }
++        printf("parseUri Host[%s]\n", hostname);
+         if (mprParseSocketAddress(hostname, &up->host, NULL, NULL, 0) < 0 || up->host == 0 || *up->host == '\0') {
+             if (!conn->error) {
+                 httpBadRequestError(conn, HTTP_CODE_BAD_REQUEST, "Bad host");
+             }
+         } else {
+-            up->port = conn->sock->listenSock->port;
++            char *p = schr(hostname, ':');
++            if (p) {
++                up->port = atoi(p + 1);
++            }
++            else {
++                up->port = conn->sock->listenSock->port;
++            }
++            printf("parseUri Host[%s] Port Process Listen[%d]\n", hostname, up->port);
+         }
+     }
+ }
+@@ -19844,6 +19854,8 @@
+     HttpRx          *rx;
+     HttpUri         *base, *canonical;
+     cchar           *msg;
++    HttpUri         *uri_old;
++    HttpUri         *uri_new;
+ 
+     assert(targetUri);
+     rx = conn->rx;
+@@ -19856,8 +19868,10 @@
+     tx->status = status;
+     msg = httpLookupStatus(status);
+ 
++    printf("httpRedirect\n");
+     canonical = conn->host->canonical;
+     if (canonical) {
++        printf("httpRedirect canonical\n");
+         base = httpCloneUri(rx->parsedUri, 0);
+         if (canonical->host) {
+             base->host = canonical->host;
+@@ -19866,12 +19880,19 @@
+             base->port = canonical->port;
+         }
+     } else {
++        printf("httpRedirect normal\n");
+         base = rx->parsedUri;
+     }
+     /*
+         Expand the target for embedded tokens. Resolve relative to the current request URI.
+      */
+-    targetUri = httpUriToString(httpResolveUri(conn, base, httpLinkUri(conn, targetUri, 0)), 0);
++    printf("httpRedirect uri[%s]\n", targetUri);
++    uri_old = httpLinkUri(conn, targetUri, 0);
++    printf("httpRedirect uri[%s] Old Port[%d]\n", targetUri, uri_old->port);
++    uri_new = httpResolveUri(conn, base, uri_old);
++    printf("httpRedirect uri[%s] New Port[%d]\n", targetUri, uri_new->port);
++    targetUri = httpUriToString(uri_new, 0);
++    printf("httpRedirect uri[%s] After\n", targetUri);
+ 
+     if (300 <= status && status <= 399) {
+         httpSetHeader(conn, "Location", "%s", targetUri);
+@@ -21806,6 +21827,7 @@
+     HttpEndpoint    *endpoint;
+     HttpUri         *current;
+ 
++    printf("httpResolveUri 1\n");
+     if (!base || !base->valid) {
+         return other;
+     }
+@@ -21820,8 +21842,10 @@
+     current->query = 0;
+     current->reference = 0;
+ 
++    printf("httpResolveUri 2\n");
+     if (other->scheme && !smatch(current->scheme, other->scheme)) {
+         current->scheme = sclone(other->scheme);
++        printf("httpResolveUri 3\n");
+         /*
+             If the scheme is changed (test above), then accept an explict port.
+             If no port, then must not use the current port as the scheme has changed.
+@@ -21830,8 +21854,10 @@
+             current->port = other->port;
+         } else {
+             host = conn ? conn->host : httpGetDefaultHost();
++            printf("httpResolveUri Host[%s]\n", host);
+             endpoint = smatch(current->scheme, "https") ? host->secureEndpoint : host->defaultEndpoint;
+             if (endpoint) {
++                printf("httpResolveUri Endpoint Port[%d]\n", endpoint->port);
+                 current->port = endpoint->port;
+             } else {
+                 current->port = 0;

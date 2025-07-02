@@ -1,0 +1,20 @@
+{
+    "name": "exp-esp",
+    "description": "ESP Plugin for Expansive",
+    "version": "0.3.0",
+    "keywords": [
+        "expansive-plugin",
+        "esp"
+    ],
+    "licenses": "GPL",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/embedthis/exp-esp.git"
+    },
+    "devDependencies": {
+        "expansive": ">=0.7.0"
+    },
+    "pak": {
+        "origin": "embedthis/exp-esp"
+    }
+}

@@ -1,0 +1,41 @@
+{
+    "name": "smart",
+    "title": "Smart Application",
+    "description": "Smart Application",
+    "version": "1.0.0",
+    "keywords": [
+        "Put search keywords here"
+    ],
+    "author": {
+        "name": "Your name",
+        "email": "Your email",
+        "url": "Your web site"
+    },
+    "bugs": {
+        "email": "name@example.com",
+        "url": "http://example.com/bugs"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/user/repo.git"
+    },
+    "license": "GPL",
+    "files": [
+        "dist/**"
+    ],
+    "ignore": [
+        "*.tmp"
+    ],
+    "pak": {
+        "import": true,
+        "mode": "release"
+    },
+    "devDependencies": {
+        "esp": "~7.x"
+    },
+    "directories": {
+        "dist": "dist",
+        "controllers": "controllers",
+        "export": "contents/lib"
+    }
+}

@@ -40,6 +40,7 @@ else
 	@if [ ! -d ../../$(PLATFORM)/local/onnx/cpu/include ]; then           cd onnx && PLATFORM=$(PLATFORM) bash build.sh; fi
 endif
 	@if [ ! -d ../../$(PLATFORM)/local/include/kaldi-native-fbank ]; then cd kaldi && PLATFORM=$(PLATFORM) bash build.sh; fi
+	@if [ ! -d ../../$(PLATFORM)/local/appweb/ ]; then                    cd appweb && PLATFORM=$(PLATFORM) bash build.sh; fi
 	##@rm -rf ../../build
 
 clean:

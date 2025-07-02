@@ -1,0 +1,59 @@
+diff -ruNa appweb-7.0.1-ori/src/mpr-openssl/mpr-openssl.c appweb-7.0.1/src/mpr-openssl/mpr-openssl.c
+--- appweb-7.0.1-ori/src/mpr-openssl/mpr-openssl.c    2017-09-28 11:36:09.000000000 +0800
++++ appweb-7.0.1/src/mpr-openssl/mpr-openssl.c    2026-07-01 16:34:20.246713562 +0800
+@@ -882,17 +882,23 @@
+     OpenSocket      *osp;
+     MprBuf          *buf;
+     int             i;
++    const unsigned char *id = NULL;
++    unsigned int id_len = 0;
++    const unsigned char *ticket = NULL;
++    size_t ticket_len = 0;
+ 
+     osp = sp->sslSocket;
+ 
+     if ((sess = SSL_get0_session(osp->handle)) != 0) {
+-        if (sess->session_id_length == 0 && osp->handle->tlsext_ticket_expected) {
++        id = SSL_SESSION_get_id(sess, &id_len);
++        SSL_SESSION_get0_ticket(sess, &ticket, &ticket_len);
++        if (id_len == 0 && (ticket != NULL && ticket_len > 0)) {
+             return sclone("ticket");
+         }
+-        buf = mprCreateBuf((sess->session_id_length * 2) + 1, 0);
++        buf = mprCreateBuf((id_len * 2) + 1, 0);
+         assert(buf->start);
+-        for (i = 0; i < (int) sess->session_id_length; i++) {
+-            mprPutToBuf(buf, "%02X", (uchar) sess->session_id[i]);
++        for (i = 0; i < (int) id_len; i++) {
++            mprPutToBuf(buf, "%02X", (uchar) id[i]);
+         }
+         return mprBufToString(buf);
+     }
+@@ -1402,16 +1408,24 @@
+         0x02,
+     };
+     DH      *dh;
++    BIGNUM *p = NULL;
++    BIGNUM *g = NULL;
+ 
+     if ((dh = DH_new()) == 0) {
+         return 0;
+     }
+-    dh->p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
+-    dh->g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
+-    if ((dh->p == 0) || (dh->g == 0)) {
++    p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
++    g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
++    if ((p == 0) || (g == 0)) {
+         DH_free(dh);
+         return 0;
+     }
++    if (DH_set0_pqg(dh, p, NULL, g) == 0) {
++        BN_free(p);
++        BN_free(g);
++        DH_free(dh);
++        return NULL;
++    }
+     return dh;
+ }
+ 

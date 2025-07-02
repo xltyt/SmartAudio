@@ -1,0 +1,23 @@
+{
+    "name": "exp-html",
+    "description": "HTML Minifier Plugin for Expansive",
+    "version": "0.1.1",
+    "keywords": [
+        "expansive-plugin",
+        "html"
+    ],
+    "licenses": "GPL",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/embedthis/exp-html.git"
+    },
+    "scripts": {
+        "postcache": {
+            "script": "if (!Cmd.locate('html-minifier')) { if (!Cmd.locate('npm')) { throw 'Cannot locate the \"npm\" utility.' } else { run('npm install -g html-minifier')}}"
+        }
+    },
+    "pak": {
+        "version": ">=0.10",
+        "origin": "embedthis/exp-html"
+    }
+}

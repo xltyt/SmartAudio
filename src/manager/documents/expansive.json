@@ -1,0 +1,48 @@
+{
+    "control": {
+        "deploy": {
+            "from": [
+                "dist/**",
+                "db/*.*",
+                "!db/*.bak",
+                "cache/*.dylib",
+                "cache/*.so",
+                "cache/*.dll",
+                "cache/*.lib",
+                "esp.json",
+                "package.json",
+                "appweb.conf"
+            ],
+            "to": "deploy",
+            "flatten": false,
+            "clean": true,
+            "script": ""
+        }
+    },
+    "release": {
+        "services": {
+            "css": {
+                "minify": true,
+                "usemin": true,
+                "usemap": false
+            },
+            "gzip": true,
+            "js": {
+                "minify": true,
+                "usemin": true,
+                "usemap": false
+            }
+        }
+    },
+    "debug": {
+        "services": {
+            "gzip": false,
+            "html": false,
+            "js": {
+                "minify": false,
+                "usemin": true,
+                "usemap": true
+            }
+        }
+    }
+}

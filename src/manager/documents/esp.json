@@ -1,0 +1,48 @@
+{
+    "esp": {
+        "app": true,
+        "generate": {
+            "appweb": "esp-mvc/generate/appweb.conf",
+            "controllerSingleton": "esp-mvc/generate/controller.c",
+            "migration": "esp-mvc/generate/migration.c",
+            "module": "esp-mvc/generate/src/app.c",
+            "clientList": "esp-html-skeleton/generate/list.esp",
+            "clientEdit": "esp-html-skeleton/generate/edit.esp",
+            "controller": "esp-html-skeleton/generate/controller.c"
+        },
+        "compile": false,
+        "apps": [
+        ]
+    },
+    "http": {
+        "auth": {
+            "store": "app"
+        },
+        "database": "default",
+        "formats": {
+            "date": "yyyy-MM-dd",
+            "float": 2
+        },
+        "pipeline": {
+            "handlers": "espHandler"
+        },
+        "routes": "esp-restful"
+    },
+    "modes": {
+        "debug": {
+            "esp": {
+                "optimize": false,
+                "combine": false
+            }
+        },
+        "release": {
+            "esp": {
+                "optimize": true,
+                "combine": true
+            },
+            "http": {
+                "compress": true
+            }
+        }
+    }
+}

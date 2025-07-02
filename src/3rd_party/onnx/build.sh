@@ -115,9 +115,9 @@ for CUDA_VERSION in "${CUDA_VERSIONS[@]}"; do
       -DCMAKE_SHARED_LINKER_FLAGS="-static-libstdc++ -static-libgcc" \
       -DCMAKE_INSTALL_PREFIX=$DST/onnx/gpu/${CUDA_VERSION} \
       ..
+      make VERBOSE=1 -j2
+      make install
     fi
-    make VERBOSE=1 -j2
-    make install
     cd ..
     rm -rf build_${CUDA_VERSION}
   fi

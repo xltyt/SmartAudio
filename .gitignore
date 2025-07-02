@@ -7,3 +7,7 @@
 /*/etc
 /build
 /data/model
+/src/manager/documents/.expansive-lastgen
+/src/manager/documents/cache/
+/src/manager/documents/deploy/
+/src/manager/documents/dist/

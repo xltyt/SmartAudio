@@ -79,3 +79,6 @@
 [submodule "src/3rd_party/kaldi/pkg"]
 	path = src/3rd_party/kaldi/pkg
 	url = https://github.com/csukuangfj/kaldi-native-fbank.git
+[submodule "src/cosyvoice/pkg_master"]
+	path = src/cosyvoice/pkg_master
+	url = https://github.com/FunAudioLLM/CosyVoice.git

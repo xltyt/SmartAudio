@@ -16,7 +16,8 @@ mkdir -p ${CUR_DIR}/../../../build
 cd ${CUR_DIR}/../../../build
 . $CUR_DIR/../build_conf.sh
 
-export OPENSSL_VERSION=1.1.0f
+#export OPENSSL_VERSION=1.1.0f
+export OPENSSL_VERSION=1.1.1f     # For appweb SSL_SESSION_get_ticket
 
 cp -r $CUR_DIR/pkg/ openssl-${OPENSSL_VERSION}
 cd openssl-${OPENSSL_VERSION}
