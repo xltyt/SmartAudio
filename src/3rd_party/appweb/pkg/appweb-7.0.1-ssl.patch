@@ -1,6 +1,15 @@
 diff -ruNa appweb-7.0.1-ori/src/mpr-openssl/mpr-openssl.c appweb-7.0.1/src/mpr-openssl/mpr-openssl.c
---- appweb-7.0.1-ori/src/mpr-openssl/mpr-openssl.c    2017-09-28 11:36:09.000000000 +0800
-+++ appweb-7.0.1/src/mpr-openssl/mpr-openssl.c    2026-07-01 16:34:20.246713562 +0800
+--- appweb-7.0.1-ori/src/mpr-openssl/mpr-openssl.c	2017-09-28 11:36:09.000000000 +0800
++++ appweb-7.0.1/src/mpr-openssl/mpr-openssl.c	2026-07-03 16:23:32.160483251 +0800
+@@ -257,7 +257,7 @@
+     randBuf.pid = getpid();
+     RAND_seed((void*) &randBuf, sizeof(randBuf));
+ #if ME_UNIX_LIKE
+-    RAND_load_file("/dev/urandom", 256);
++    //RAND_load_file("/dev/urandom", 256);
+ #endif
+ 
+     if ((openProvider = mprAllocObj(MprSocketProvider, manageOpenProvider)) == NULL) {
 @@ -882,17 +882,23 @@
      OpenSocket      *osp;
      MprBuf          *buf;

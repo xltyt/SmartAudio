@@ -38,6 +38,9 @@ cd ..
 rm -rf expansive-0.7.2
 ln -sf $DST/expansive/usr/local/bin/expansive $DST/bin/expansive
 
+if [ "$PLATFORM" = "arm" ]; then
+  export CC=aarch64-linux-gnu-gcc
+fi
 tar zxf $CUR_DIR/pkg/appweb-7.0.1-src.tgz
 cd appweb-7.0.1
 patch -p1 < $CUR_DIR/pkg/appweb-7.0.1.patch
@@ -59,8 +62,8 @@ sed -i "1030a\\\tcp \$(BUILD)/bin/libpcre.a \$(ME_VAPP_PREFIX)/bin/libpcre.a ; \
 sed -i '25,33s/^/\/\//' src/server/appweb.c
 sed -i '262,267s/^/\/\//' src/server/appweb.c
 sed -i '1998a\        mprWriteFileFmt(app->combineFile, "#include <web_common.h>\\n\\n");' src/esp/esp.c
-CFLAGS="$PARAM" LDFLAGS="$PARAM -L$DST/lib" LIBS="-lssl -lcrypto" ME_COM_CGI=1 ME_COM_OPENSSL=1 ME_COM_MBEDTLS=0 ME_COM_ESP=1 ARCH=x64 OS=linux ME_ROOT_PREFIX=$DST/appweb SHOW=1 PROFILE=$APPWEB_PROFILE make
-CFLAGS="$PARAM" LDFLAGS="$PARAM -L$DST/lib" LIBS="-lssl -lcrypto" ME_COM_CGI=1 ME_COM_OPENSSL=1 ME_COM_MBEDTLS=0 ME_COM_ESP=1 ARCH=x64 OS=linux ME_ROOT_PREFIX=$DST/appweb SHOW=1 PROFILE=$APPWEB_PROFILE make install
+CFLAGS="$PARAM -I$DST/include" LDFLAGS="$PARAM -L$DST/lib" LIBS="-lssl -lcrypto" ME_COM_CGI=1 ME_COM_OPENSSL=1 ME_COM_MBEDTLS=0 ME_COM_ESP=1 ARCH=x64 OS=linux ME_ROOT_PREFIX=$DST/appweb SHOW=1 PROFILE=$APPWEB_PROFILE make
+CFLAGS="$PARAM -I$DST/include" LDFLAGS="$PARAM -L$DST/lib" LIBS="-lssl -lcrypto" ME_COM_CGI=1 ME_COM_OPENSSL=1 ME_COM_MBEDTLS=0 ME_COM_ESP=1 ARCH=x64 OS=linux ME_ROOT_PREFIX=$DST/appweb SHOW=1 PROFILE=$APPWEB_PROFILE make install
 sed -i 's/'\''${CC} -shared ${DEBUG} -Wall.*'\''/'\''date'\''/g' $DST/appweb/lib/appweb/latest/bin/esp-compile.json
 cd ..
 rm -rf appweb-7.0.1

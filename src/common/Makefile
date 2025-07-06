@@ -8,6 +8,8 @@ APP_DIR := $(CURRENT_DIR)/../../$(PLATFORM)/lib
 OBJS_DIR := $(CURRENT_DIR)/../../$(PLATFORM)/build/$(BUILD_MODULE_NAME)
 THIRD_DIR := $(CURRENT_DIR)/../../$(PLATFORM)/local
 TEST_DIR := $(CURRENT_DIR)/../../$(PLATFORM)/test
+APPWEB_DIR=$(THIRD_DIR)/appweb
+include ../common/web.mk
 
 ifeq ($(PLATFORM),arm)
   CC=aarch64-linux-gnu-gcc
@@ -66,7 +68,9 @@ SOURCES += \
   string_utils.cpp \
   sqlite_utils.cpp \
   CppSQLite3.cpp \
-  net_utils.cpp
+  net_utils.cpp \
+  sqlite_common.c \
+  myappweb.c
 
 OBJS := $(addprefix $(OBJS_DIR)/,$(patsubst %.cpp,%.o,$(SOURCES)))
 OBJS := $(patsubst %.c,%.o,$(OBJS))
@@ -95,6 +99,9 @@ $(OBJS_DIR)/%.o:%.cpp
 $(OBJS_DIR)/%.o:%.cc
 	@mkdir -p $(shell dirname $@)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $? -o $@
+$(OBJS_DIR)/%.o:%.c
+	@mkdir -p $(shell dirname $@)
+	$(CC) $(CFLAGS) $(INCLUDES) $(WEB_CFLAGS) -c $? -o $@
 
 clean:
 	rm -f $(OBJS)
