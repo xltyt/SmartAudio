@@ -4,7 +4,7 @@ CUR_FILE=`readlink -f $0`
 CUR_DIR=`dirname $CUR_FILE`
 DST=${CUR_DIR}/../../../amd64/manager
 mkdir -p ${DST}/etc
-mkdir -p ${DST}/../arm/etc
+mkdir -p ${DST}/../../arm/manager/etc
 
 SERVER_VIP=$(ip addr | grep "inet " | grep -v 127 | grep -v 172 | awk '{print $2}' | awk -F"/" '{print $1}')
 echo ${SERVER_VIP} > tmp_server.txt
@@ -21,7 +21,7 @@ fi
 
 if [ "$TMP_MD5" != "$LAST_MD5" ]; then
   set -e
-  openssl req -new -subj "/C=CN/ST=Beijing/L=Beijing/O=SuperCloudYouwei/CN=${SERVER_VIP}/OU=SuperCloudYouwei" -sha256 -key server.key -out server.csr
+  openssl req -new -subj "/C=CN/ST=Beijing/L=Beijing/O=My/CN=${SERVER_VIP}/OU=My" -sha256 -key server.key -out server.csr
   cp -f private.ext /tmp/
   i=1
   while read line
@@ -33,9 +33,9 @@ if [ "$TMP_MD5" != "$LAST_MD5" ]; then
   rm -f server.csr
   rm -f /tmp/private.ext
   cp -f server.crt $DST/etc/
-  cp -f server.crt $DST/../../arm/etc/
+  cp -f server.crt $DST/../../arm/manager/etc/
   cp -f server.key $DST/etc/
-  cp -f server.key $DST/../../arm/etc/
+  cp -f server.key $DST/../../arm/manager/etc/
   set +e
   mv -f tmp_server.txt $DST/etc/crt_last_server.txt
 else

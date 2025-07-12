@@ -1,0 +1,2384 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AudioClone · 音频克隆系统</title>
+    <!-- jQuery 3.x -->
+    <script src="/js/jquery-3.7.1.min.js"></script>
+    <!-- Font Awesome 6 -->
+    <!--
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    -->
+    <link rel="stylesheet" href="/css/all.min.css" />
+
+<style>
+    /* ============================================================
+       CSS 变量 – 浅色 / 深色 主题
+       ============================================================ */
+    :root {
+        --primary-start: #4F46E5;
+        --primary-end: #7C3AED;
+        --primary-gradient: linear-gradient(135deg, var(--primary-start), var(--primary-end));
+        --bg-body: #F8FAFC;
+        --bg-sidebar: rgba(255, 255, 255, 0.50);
+        --bg-card: rgba(255, 255, 255, 0.55);
+        --bg-glass: rgba(255, 255, 255, 0.32);
+        --bg-modal: rgba(15, 23, 42, 0.45);
+        --text-primary: #0F172A;
+        --text-secondary: #334155;
+        --text-muted: #64748B;
+        --text-inverse: #FFFFFF;
+        --border-glass: 1px solid rgba(255, 255, 255, 0.50);
+        --shadow-card: 0 20px 35px -8px rgba(0, 0, 0, 0.08);
+        --shadow-hover: 0 30px 50px -12px rgba(0, 0, 0, 0.16);
+        --backdrop-glass: blur(16px) saturate(1.3);
+        --radius-lg: 22px;
+        --radius-md: 14px;
+        --radius-sm: 10px;
+        --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+        --ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        --glow-color: rgba(79, 70, 229, 0.12);
+        --scroll-thumb: #4F46E5;
+        --fw-light: 300;
+        --fw-regular: 400;
+        --fw-medium: 500;
+    }
+
+    [data-theme="dark"] {
+        --bg-body: #0B1120;
+        --bg-sidebar: rgba(15, 23, 42, 0.72);
+        --bg-card: rgba(15, 23, 42, 0.55);
+        --bg-glass: rgba(15, 23, 42, 0.40);
+        --bg-modal: rgba(0, 0, 0, 0.55);
+        --text-primary: #F1F5F9;
+        --text-secondary: #CBD5E1;
+        --text-muted: #94A3B8;
+        --text-inverse: #0F172A;
+        --border-glass: 1px solid rgba(255, 255, 255, 0.06);
+        --shadow-card: 0 20px 35px -8px rgba(0, 0, 0, 0.50);
+        --shadow-hover: 0 30px 50px -12px rgba(0, 0, 0, 0.70);
+        --glow-color: rgba(79, 70, 229, 0.20);
+        --scroll-thumb: #6366F1;
+    }
+
+    /* ============================================================
+       全局重置
+       ============================================================ */
+    *,
+    *::before,
+    *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    html {
+        scroll-behavior: smooth;
+    }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+        background: var(--bg-body);
+        color: var(--text-primary);
+        line-height: 1.6;
+        min-height: 100vh;
+        display: flex;
+        transition: background 0.4s ease, color 0.3s ease;
+        position: relative;
+        font-weight: var(--fw-regular);
+        -webkit-font-smoothing: antialiased;
+    }
+    body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+            radial-gradient(ellipse at 18% 50%, var(--glow-color) 0%, transparent 60%),
+            radial-gradient(ellipse at 82% 20%, var(--glow-color) 0%, transparent 50%),
+            radial-gradient(ellipse at 50% 85%, rgba(124, 58, 237, 0.06) 0%, transparent 50%);
+    }
+
+    /* ============================================================
+       侧边栏
+       ============================================================ */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 250px;
+        z-index: 100;
+        background: var(--bg-sidebar);
+        backdrop-filter: var(--backdrop-glass);
+        -webkit-backdrop-filter: var(--backdrop-glass);
+        border-right: var(--border-glass);
+        padding: 2rem 1.2rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        transition: background 0.4s ease, transform 0.35s var(--ease-spring), box-shadow 0.3s;
+        box-shadow: 4px 0 30px -12px rgba(0, 0, 0, 0.04);
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .sidebar-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        margin-bottom: 2.2rem;
+        padding-bottom: 1.4rem;
+        border-bottom: var(--border-glass);
+        flex-shrink: 0;
+    }
+    .sidebar-brand i {
+        font-size: 1.8rem;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .sidebar-brand span {
+        font-size: 1.2rem;
+        font-weight: var(--fw-medium);
+        letter-spacing: -0.01em;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .sidebar-nav {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        margin-top: 0.2rem;
+    }
+    .sidebar-nav .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        padding: 0.65rem 1rem;
+        border-radius: var(--radius-sm);
+        color: var(--text-secondary);
+        font-weight: var(--fw-regular);
+        font-size: 0.92rem;
+        cursor: pointer;
+        transition: all 0.2s var(--ease-smooth);
+        background: transparent;
+        border: none;
+        width: 100%;
+        text-align: left;
+        position: relative;
+        font-family: inherit;
+    }
+    .sidebar-nav .nav-item i {
+        width: 1.3rem;
+        font-size: 1rem;
+        color: var(--text-muted);
+        transition: color 0.2s;
+        flex-shrink: 0;
+    }
+    .sidebar-nav .nav-item:hover {
+        background: rgba(79, 70, 229, 0.06);
+        color: var(--primary-start);
+    }
+    .sidebar-nav .nav-item:hover i {
+        color: var(--primary-start);
+    }
+    .sidebar-nav .nav-item.active {
+        background: var(--primary-gradient);
+        color: #fff;
+        box-shadow: 0 6px 20px -6px rgba(79, 70, 229, 0.30);
+        font-weight: var(--fw-regular);
+    }
+    .sidebar-nav .nav-item.active i {
+        color: #fff;
+    }
+    .sidebar-nav .nav-item .badge {
+        margin-left: auto;
+        background: rgba(255, 255, 255, 0.12);
+        padding: 0.02rem 0.55rem;
+        border-radius: 20px;
+        font-size: 0.6rem;
+        font-weight: var(--fw-regular);
+        letter-spacing: 0.02em;
+        color: var(--text-muted);
+    }
+    .sidebar-nav .nav-item.active .badge {
+        background: rgba(255, 255, 255, 0.18);
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    .sidebar-footer {
+        margin-top: auto;
+        padding-top: 1.2rem;
+        border-top: var(--border-glass);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .sidebar-footer .user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        min-width: 0;
+        flex: 1;
+    }
+    .sidebar-footer .user-info .avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--primary-gradient);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: var(--fw-medium);
+        font-size: 0.8rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px -4px rgba(79, 70, 229, 0.25);
+    }
+    .sidebar-footer .user-info .name {
+        font-size: 0.8rem;
+        font-weight: var(--fw-medium);
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .sidebar-footer .user-info .role {
+        font-size: 0.6rem;
+        color: var(--text-muted);
+        opacity: 0.75;
+        font-weight: var(--fw-light);
+    }
+    .sidebar-footer .footer-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-shrink: 0;
+    }
+    .sidebar-footer .footer-actions .action-btn {
+        background: var(--bg-glass);
+        border: var(--border-glass);
+        border-radius: 40px;
+        width: 34px;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.25s var(--ease-smooth);
+        backdrop-filter: var(--backdrop-glass);
+        flex-shrink: 0;
+        border: none;
+        background: var(--bg-glass);
+    }
+    .sidebar-footer .footer-actions .action-btn:hover {
+        transform: scale(1.06);
+    }
+    .sidebar-footer .footer-actions .logout-btn:hover {
+        background: rgba(239, 68, 68, 0.10);
+        color: #EF4444;
+    }
+    .theme-toggle {
+        background: var(--bg-glass);
+        border: var(--border-glass);
+        border-radius: 40px;
+        width: 34px;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.25s var(--ease-smooth);
+        backdrop-filter: var(--backdrop-glass);
+        flex-shrink: 0;
+    }
+    .theme-toggle:hover {
+        transform: scale(1.06) rotate(6deg);
+        background: rgba(79, 70, 229, 0.10);
+    }
+    .sidebar-close-btn {
+        display: none;
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: var(--bg-glass);
+        border: var(--border-glass);
+        border-radius: 50%;
+        width: 34px;
+        height: 34px;
+        font-size: 1rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s;
+        backdrop-filter: var(--backdrop-glass);
+        align-items: center;
+        justify-content: center;
+    }
+    .sidebar-close-btn:hover {
+        background: rgba(239, 68, 68, 0.10);
+        color: #EF4444;
+    }
+
+    .main-content {
+        margin-left: 250px;
+        flex: 1;
+        padding: 2rem 2.5rem 3rem;
+        position: relative;
+        z-index: 1;
+        min-height: 100vh;
+        transition: margin-left 0.35s var(--ease-spring);
+    }
+    .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .topbar .left-group {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .topbar h1 {
+        font-size: 1.5rem;
+        font-weight: var(--fw-medium);
+        letter-spacing: -0.01em;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0;
+    }
+    .topbar .page-actions {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .topbar .page-actions .btn {
+        padding: 0.45rem 1.1rem;
+        border-radius: 40px;
+        border: none;
+        font-weight: var(--fw-regular);
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.25s var(--ease-smooth);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: var(--bg-glass);
+        backdrop-filter: var(--backdrop-glass);
+        border: var(--border-glass);
+        color: var(--text-secondary);
+        font-family: inherit;
+        text-decoration: none;
+    }
+    .topbar .page-actions .btn-primary {
+        background: var(--primary-gradient);
+        color: #fff;
+        border: none;
+        box-shadow: 0 6px 18px -8px rgba(79, 70, 229, 0.35);
+    }
+    .topbar .page-actions .btn-primary:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 10px 28px -8px rgba(79, 70, 229, 0.45);
+    }
+    .topbar .page-actions .btn-outline:hover {
+        background: rgba(79, 70, 229, 0.06);
+        transform: translateY(-2px);
+    }
+    .topbar .menu-toggle {
+        display: none;
+        background: var(--bg-glass);
+        border: var(--border-glass);
+        border-radius: 40px;
+        width: 42px;
+        height: 42px;
+        font-size: 1.1rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+        backdrop-filter: var(--backdrop-glass);
+        transition: all 0.2s;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .topbar .menu-toggle:hover {
+        background: rgba(79, 70, 229, 0.06);
+    }
+
+    .page-view {
+        display: none;
+        animation: fadeInUp 0.6s var(--ease-smooth) both;
+    }
+    .page-view.active {
+        display: block;
+    }
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(26px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .page-view.active .stat-card {
+        animation: fadeInUp 0.6s var(--ease-smooth) both;
+    }
+    .page-view.active .stat-card:nth-child(1) { animation-delay: 0.04s; }
+    .page-view.active .stat-card:nth-child(2) { animation-delay: 0.09s; }
+    .page-view.active .stat-card:nth-child(3) { animation-delay: 0.14s; }
+    .page-view.active .stat-card:nth-child(4) { animation-delay: 0.19s; }
+    .page-view.active .glass-card { animation: fadeInUp 0.6s var(--ease-smooth) both; animation-delay: 0.10s; }
+    .page-view.active .upload-zone { animation: fadeInUp 0.6s var(--ease-smooth) both; animation-delay: 0.14s; }
+
+    .glass-card {
+        background: var(--bg-card);
+        backdrop-filter: var(--backdrop-glass);
+        -webkit-backdrop-filter: var(--backdrop-glass);
+        border: var(--border-glass);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
+        padding: 2rem;
+        transition: all 0.25s var(--ease-smooth);
+    }
+    .glass-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-hover);
+    }
+    .glass-card .card-title {
+        font-size: 1rem;
+        font-weight: var(--fw-medium);
+        margin-bottom: 1.2rem;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+    .glass-card .card-title i {
+        color: var(--primary-start);
+        font-size: 1.05rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+    }
+    .stat-card {
+        background: var(--bg-card);
+        backdrop-filter: var(--backdrop-glass);
+        -webkit-backdrop-filter: var(--backdrop-glass);
+        border: var(--border-glass);
+        border-radius: var(--radius-md);
+        padding: 1.4rem 1.6rem;
+        box-shadow: var(--shadow-card);
+        transition: all 0.25s var(--ease-smooth);
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+    }
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-hover);
+    }
+    .stat-card .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-sm);
+        background: var(--primary-gradient);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        color: #fff;
+        flex-shrink: 0;
+        box-shadow: 0 6px 18px -8px rgba(79, 70, 229, 0.28);
+    }
+    .stat-card .stat-info .stat-value {
+        font-size: 1.7rem;
+        font-weight: var(--fw-medium);
+        line-height: 1.2;
+        color: var(--text-primary);
+    }
+    .stat-card .stat-info .stat-label {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-weight: var(--fw-light);
+    }
+
+    .activity-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .activity-list li {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid rgba(128, 128, 128, 0.06);
+        font-size: 0.92rem;
+        color: var(--text-secondary);
+        font-weight: var(--fw-light);
+    }
+    .activity-list li:last-child {
+        border-bottom: none;
+    }
+    .activity-list .activity-time {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        margin-left: auto;
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-weight: var(--fw-light);
+    }
+    .activity-list .activity-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--primary-start);
+        flex-shrink: 0;
+        opacity: 0.7;
+    }
+    .activity-list .activity-dot.green { background: #22C55E; }
+    .activity-list .activity-dot.orange { background: #F59E0B; }
+    .activity-list .activity-dot.purple { background: #8B5CF6; }
+
+    .table-wrap {
+        overflow-x: auto;
+        margin-top: 0.2rem;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+    table th {
+        text-align: left;
+        padding: 0.6rem 0.5rem 0.6rem 0;
+        font-weight: var(--fw-medium);
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid rgba(128, 128, 128, 0.08);
+    }
+    table td {
+        padding: 0.7rem 0.5rem 0.7rem 0;
+        border-bottom: 1px solid rgba(128, 128, 128, 0.05);
+        color: var(--text-secondary);
+        vertical-align: middle;
+        font-weight: var(--fw-light);
+    }
+    table tr:last-child td {
+        border-bottom: none;
+    }
+    table .user-avatar-sm {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--primary-gradient);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: var(--fw-medium);
+        font-size: 0.65rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 10px -4px rgba(79, 70, 229, 0.22);
+    }
+    .role-badge {
+        padding: 0.05rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.65rem;
+        font-weight: var(--fw-regular);
+        background: rgba(79, 70, 229, 0.08);
+        color: var(--primary-start);
+        display: inline-block;
+    }
+    .role-badge.admin {
+        background: rgba(239, 68, 68, 0.08);
+        color: #EF4444;
+    }
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.7rem;
+        font-weight: var(--fw-light);
+        color: #22C55E;
+    }
+    .status-badge.inactive {
+        color: #94A3B8;
+    }
+    .status-badge::before {
+        content: '';
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #22C55E;
+        display: inline-block;
+        flex-shrink: 0;
+    }
+    .status-badge.inactive::before {
+        background: #94A3B8;
+    }
+    .table-actions {
+        display: flex;
+        gap: 0.25rem;
+        justify-content: flex-end;
+    }
+    .table-actions button {
+        background: var(--bg-glass);
+        border: var(--border-glass);
+        cursor: pointer;
+        color: var(--text-muted);
+        padding: 0.2rem 0.45rem;
+        border-radius: 6px;
+        transition: all 0.2s;
+        font-size: 0.8rem;
+        backdrop-filter: var(--backdrop-glass);
+        line-height: 1.4;
+        font-family: inherit;
+    }
+    .table-actions button:hover {
+        background: rgba(239, 68, 68, 0.08);
+        color: #EF4444;
+        transform: scale(1.06);
+    }
+    .table-actions button.edit-btn:hover {
+        background: rgba(79, 70, 229, 0.06);
+        color: var(--primary-start);
+    }
+
+    .upload-zone {
+        border: 2px dashed rgba(79, 70, 229, 0.20);
+        border-radius: var(--radius-md);
+        padding: 2.8rem 2rem;
+        text-align: center;
+        transition: all 0.3s;
+        cursor: pointer;
+        background: var(--bg-glass);
+        backdrop-filter: var(--backdrop-glass);
+        position: relative;
+    }
+    .upload-zone:hover,
+    .upload-zone.dragover {
+        border-color: var(--primary-start);
+        background: rgba(79, 70, 229, 0.04);
+        transform: scale(1.003);
+    }
+    .upload-zone .upload-icon {
+        font-size: 2.6rem;
+        color: var(--primary-start);
+        opacity: 0.4;
+        margin-bottom: 0.4rem;
+    }
+    .upload-zone p {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin: 0.15rem 0;
+        font-weight: var(--fw-light);
+    }
+    .upload-zone .highlight {
+        color: var(--primary-start);
+        font-weight: var(--fw-medium);
+    }
+    .upload-zone input[type="file"] {
+        display: none;
+    }
+    /* 上传状态显示 */
+    .upload-status {
+        margin-top: 0.8rem;
+        padding: 0.5rem 1rem;
+        border-radius: var(--radius-sm);
+        background: var(--bg-glass);
+        border: var(--border-glass);
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        min-height: 2.5rem;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    .upload-status .status-icon {
+        font-size: 1rem;
+    }
+    .upload-status .status-icon.success { color: #22C55E; }
+    .upload-status .status-icon.error { color: #EF4444; }
+    .upload-status .status-icon.loading { color: var(--primary-start); animation: spin 1s linear infinite; }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    .upload-status.show {
+        display: flex;
+    }
+
+    .template-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+        margin-top: 1.2rem;
+    }
+    .template-card {
+        background: var(--bg-glass);
+        backdrop-filter: var(--backdrop-glass);
+        border: var(--border-glass);
+        border-radius: var(--radius-md);
+        padding: 1.2rem 1.4rem;
+        transition: all 0.25s var(--ease-smooth);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+    .template-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-hover);
+        background: var(--bg-card);
+    }
+    .template-card .tpl-name {
+        font-weight: var(--fw-medium);
+        font-size: 0.95rem;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .template-card .tpl-name i {
+        color: var(--primary-start);
+        opacity: 0.5;
+        font-size: 0.9rem;
+    }
+    .template-card .tpl-transcript {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        font-weight: var(--fw-light);
+        line-height: 1.5;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .template-card .tpl-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 0.3rem;
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        font-weight: var(--fw-light);
+    }
+    .template-card .tpl-actions {
+        display: flex;
+        gap: 0.3rem;
+    }
+    .template-card .tpl-actions button {
+        background: var(--bg-glass);
+        border: var(--border-glass);
+        border-radius: 6px;
+        padding: 0.15rem 0.5rem;
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
+        backdrop-filter: var(--backdrop-glass);
+    }
+    .template-card .tpl-actions button:hover {
+        background: rgba(239, 68, 68, 0.08);
+        color: #EF4444;
+        transform: scale(1.05);
+    }
+    .template-card .tpl-actions button.select-btn:hover {
+        background: rgba(79, 70, 229, 0.08);
+        color: var(--primary-start);
+    }
+    .template-card .tpl-badge {
+        position: absolute;
+        top: 0.6rem;
+        right: 0.8rem;
+        font-size: 0.55rem;
+        background: rgba(79, 70, 229, 0.10);
+        color: var(--primary-start);
+        padding: 0.05rem 0.5rem;
+        border-radius: 20px;
+        font-weight: var(--fw-regular);
+    }
+
+    .gen-select-wrap {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 1.2rem;
+    }
+    .gen-select-wrap label {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        font-weight: var(--fw-regular);
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .gen-select-wrap select {
+        padding: 0.45rem 1rem;
+        border-radius: var(--radius-sm);
+        border: var(--border-glass);
+        background: var(--bg-glass);
+        backdrop-filter: var(--backdrop-glass);
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        font-family: inherit;
+        font-weight: var(--fw-light);
+        outline: none;
+        transition: border 0.2s, box-shadow 0.2s;
+        min-width: 200px;
+        cursor: pointer;
+        appearance: auto;
+    }
+    .gen-select-wrap select:focus {
+        border-color: var(--primary-start);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.06);
+    }
+    .gen-select-wrap select option {
+        background: var(--bg-body);
+        color: var(--text-primary);
+    }
+    .gen-select-wrap .selected-hint {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-weight: var(--fw-light);
+        background: var(--bg-glass);
+        padding: 0.2rem 0.8rem;
+        border-radius: 20px;
+        border: var(--border-glass);
+    }
+
+    .gen-textarea {
+        width: 100%;
+        min-height: 110px;
+        padding: 0.9rem 1.2rem;
+        border-radius: var(--radius-sm);
+        border: var(--border-glass);
+        background: var(--bg-glass);
+        backdrop-filter: var(--backdrop-glass);
+        color: var(--text-primary);
+        font-size: 0.92rem;
+        font-family: inherit;
+        resize: vertical;
+        transition: all 0.25s;
+        outline: none;
+        line-height: 1.7;
+        font-weight: var(--fw-light);
+    }
+    .gen-textarea:focus {
+        border-color: var(--primary-start);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.06);
+    }
+    .gen-textarea::placeholder {
+        color: var(--text-muted);
+        font-weight: var(--fw-light);
+    }
+    .gen-output {
+        margin-top: 1.4rem;
+        padding: 1.4rem 1.6rem;
+        background: var(--bg-glass);
+        border-radius: var(--radius-sm);
+        border: var(--border-glass);
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .gen-output .audio-player {
+        flex: 1;
+        min-width: 180px;
+    }
+    .gen-output .audio-player audio {
+        width: 100%;
+        border-radius: 40px;
+        outline: none;
+        height: 44px;
+    }
+    .gen-output .gen-meta {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        flex-shrink: 0;
+        font-weight: var(--fw-light);
+    }
+
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 999;
+        background: var(--bg-modal);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        animation: fadeIn 0.3s ease;
+    }
+    .modal-overlay.open {
+        display: flex;
+    }
+    .modal-box {
+        background: var(--bg-body);
+        border-radius: var(--radius-lg);
+        max-width: 460px;
+        width: 100%;
+        padding: 2.2rem 2.2rem 2rem;
+        box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.30);
+        border: var(--border-glass);
+        animation: scaleIn 0.35s var(--ease-spring);
+        position: relative;
+    }
+    .modal-box .modal-close {
+        position: absolute;
+        top: 1rem;
+        right: 1.2rem;
+        background: var(--bg-glass);
+        border: var(--border-glass);
+        border-radius: 50%;
+        width: 34px;
+        height: 34px;
+        font-size: 1rem;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.2s;
+        backdrop-filter: var(--backdrop-glass);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-box .modal-close:hover {
+        background: rgba(239, 68, 68, 0.08);
+        color: #EF4444;
+        transform: rotate(90deg);
+    }
+    .modal-box h2 {
+        font-size: 1.25rem;
+        font-weight: var(--fw-medium);
+        margin-bottom: 0.2rem;
+        color: var(--text-primary);
+    }
+    .modal-box .sub {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        margin-bottom: 1.4rem;
+        font-weight: var(--fw-light);
+    }
+    .modal-box .form-group {
+        margin-bottom: 1.1rem;
+    }
+    .modal-box .form-group label {
+        display: block;
+        font-weight: var(--fw-regular);
+        font-size: 0.82rem;
+        margin-bottom: 0.25rem;
+        color: var(--text-secondary);
+    }
+    .modal-box .form-group input,
+    .modal-box .form-group select {
+        width: 100%;
+        padding: 0.5rem 0.9rem;
+        border-radius: var(--radius-sm);
+        border: var(--border-glass);
+        background: var(--bg-glass);
+        backdrop-filter: var(--backdrop-glass);
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        outline: none;
+        transition: border 0.2s, box-shadow 0.2s;
+        font-family: inherit;
+        font-weight: var(--fw-light);
+    }
+    .modal-box .form-group input:focus,
+    .modal-box .form-group select:focus {
+        border-color: var(--primary-start);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.06);
+    }
+    .modal-box .form-actions {
+        display: flex;
+        gap: 0.7rem;
+        justify-content: flex-end;
+        margin-top: 1.6rem;
+    }
+    .modal-box .form-actions .btn {
+        padding: 0.45rem 1.5rem;
+        border-radius: 40px;
+        border: none;
+        font-weight: var(--fw-regular);
+        cursor: pointer;
+        transition: all 0.25s var(--ease-smooth);
+        font-family: inherit;
+        font-size: 0.85rem;
+    }
+    .modal-box .form-actions .btn-secondary {
+        background: var(--bg-glass);
+        border: var(--border-glass);
+        color: var(--text-secondary);
+        backdrop-filter: var(--backdrop-glass);
+    }
+    .modal-box .form-actions .btn-secondary:hover {
+        background: rgba(0, 0, 0, 0.03);
+        transform: translateY(-2px);
+    }
+    .modal-box .form-actions .btn-primary {
+        background: var(--primary-gradient);
+        color: #fff;
+        box-shadow: 0 6px 18px -8px rgba(79, 70, 229, 0.35);
+    }
+    .modal-box .form-actions .btn-primary:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 10px 28px -8px rgba(79, 70, 229, 0.45);
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    @keyframes scaleIn {
+        from { opacity: 0; transform: scale(0.94) translateY(18px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    @media (max-width: 1200px) {
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        .template-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+    }
+    @media (max-width: 992px) {
+        .main-content { padding: 1.5rem; }
+    }
+    @media (max-width: 768px) {
+        .sidebar { transform: translateX(-100%); width: 270px; padding: 1.4rem 1rem; box-shadow: 8px 0 40px -12px rgba(0,0,0,0.15); }
+        .sidebar.open { transform: translateX(0); }
+        .sidebar-close-btn { display: flex; }
+        .main-content { margin-left: 0; padding: 1rem 1.2rem 2rem; }
+        .topbar .menu-toggle { display: flex; }
+        .topbar h1 { font-size: 1.2rem; }
+        .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+        .stat-card { padding: 1rem 1.1rem; gap: 0.7rem; }
+        .stat-card .stat-info .stat-value { font-size: 1.3rem; }
+        .stat-card .stat-icon { width: 38px; height: 38px; font-size: 1rem; }
+        .glass-card { padding: 1.2rem; }
+        .glass-card .card-title { font-size: 0.9rem; }
+        .modal-box { padding: 1.6rem; margin: 0.5rem; }
+        .upload-zone { padding: 1.8rem 1rem; }
+        .upload-zone .upload-icon { font-size: 2rem; }
+        .gen-output { flex-direction: column; align-items: stretch; gap: 0.8rem; }
+        .gen-output .gen-meta { text-align: center; }
+        .topbar .page-actions .btn span { display: none; }
+        .topbar .page-actions .btn { padding: 0.4rem 0.8rem; }
+        .gen-select-wrap { flex-direction: column; align-items: stretch; }
+        .gen-select-wrap select { min-width: unset; }
+        .template-grid { grid-template-columns: 1fr; }
+        .sidebar-footer .footer-actions { gap: 0.2rem; }
+        .sidebar-footer .footer-actions .action-btn { width: 30px; height: 30px; font-size: 0.8rem; }
+    }
+    @media (max-width: 480px) {
+        .stats-grid { grid-template-columns: 1fr; }
+        .sidebar { width: 100%; max-width: 300px; }
+        .table-wrap { font-size: 0.8rem; }
+        table th, table td { padding: 0.4rem 0.3rem 0.4rem 0; }
+        .role-badge { font-size: 0.55rem; padding: 0.02rem 0.4rem; }
+        .status-badge { font-size: 0.6rem; }
+        .template-card { padding: 1rem 1.1rem; }
+        .template-card .tpl-name { font-size: 0.88rem; }
+    }
+
+    .mt-2 { margin-top: 1.4rem; }
+    .mt-3 { margin-top: 2rem; }
+    .mt-1 { margin-top: 0.8rem; }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; }
+    .text-muted { color: var(--text-muted); }
+    .text-center { text-align: center; }
+    .w-full { width: 100%; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 10px; opacity: 0.4; }
+    ::-webkit-scrollbar-thumb:hover { opacity: 0.7; }
+
+    .toast-container {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4rem;
+        pointer-events: none;
+        max-width: 92%;
+    }
+    .toast-item {
+        background: var(--bg-card);
+        backdrop-filter: var(--backdrop-glass);
+        border: var(--border-glass);
+        border-radius: 40px;
+        padding: 0.5rem 1.6rem;
+        box-shadow: var(--shadow-hover);
+        color: var(--text-primary);
+        font-weight: var(--fw-regular);
+        font-size: 0.85rem;
+        pointer-events: auto;
+        animation: fadeInUp 0.4s var(--ease-smooth);
+        white-space: nowrap;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: var(--fw-light);
+    }
+    .toast-item.success { border-left: 3px solid #22C55E; }
+    .toast-item.error { border-left: 3px solid #EF4444; }
+    .toast-item.info { border-left: 3px solid #3B82F6; }
+    .toast-item.hiding { opacity: 0; transition: opacity 0.35s ease; }
+
+    .btn {
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.25s var(--ease-smooth);
+    }
+    .btn-primary {
+        background: var(--primary-gradient);
+        color: #fff;
+        border: none;
+        box-shadow: 0 6px 18px -8px rgba(79, 70, 229, 0.30);
+    }
+    .btn-primary:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 10px 28px -8px rgba(79, 70, 229, 0.42);
+    }
+    .btn-outline {
+        background: var(--bg-glass);
+        border: var(--border-glass);
+        color: var(--text-secondary);
+        backdrop-filter: var(--backdrop-glass);
+    }
+    .btn-outline:hover {
+        background: rgba(79, 70, 229, 0.05);
+        transform: translateY(-2px);
+    }
+    .empty-state {
+        text-align: center;
+        padding: 2rem 0;
+        color: var(--text-muted);
+        font-weight: var(--fw-light);
+        font-size: 0.9rem;
+    }
+    .empty-state i {
+        font-size: 2.5rem;
+        opacity: 0.2;
+        display: block;
+        margin-bottom: 0.5rem;
+        color: var(--primary-start);
+    }
+</style>
+</head>
+<body>
+    <%
+    char username[512] = {0};
+    {
+        const char *username_p = getSessionVar("username");
+        if (NULL != username_p && 0 != strlen(username_p)) {
+          strcpy(username, username_p);
+        }
+    }
+    int user_type = SI("USER_TYPE");
+    int user_id = SI("USER_ID");
+    %>
+
+    <!-- ============================================================
+    侧边栏
+    ============================================================ -->
+    <aside class="sidebar" id="sidebar">
+        <button class="sidebar-close-btn" id="sidebarClose" aria-label="关闭侧栏">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <div class="sidebar-brand">
+            <i class="fas fa-wave-square"></i>
+            <span>AudioClone</span>
+        </div>
+
+        <nav class="sidebar-nav" id="navMenu">
+            <button class="nav-item" data-view="dashboard">
+                <i class="fas fa-chart-pie"></i> 数据看板
+            </button>
+            <% if (0 == user_type) { %>
+            <button class="nav-item" data-view="users">
+                <i class="fas fa-users"></i> 用户管理
+                <span class="badge">管理</span>
+            </button>
+            <% } %>
+            <button class="nav-item" data-view="templates">
+                <i class="fas fa-folder-open"></i> 模板管理
+                <span class="badge" id="templateCountBadge">0</span>
+            </button>
+            <button class="nav-item" data-view="generate">
+                <i class="fas fa-robot"></i> 音频生成
+                <span class="badge" id="genCountBadge">0</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info" id="userInfo">
+                <div class="avatar" id="userAvatar"><% render("%c", username[0]); %></div>
+                <div>
+                    <div class="name" id="userName"><% render("%s", username);  %></div>
+                    <div class="role" id="userRole"><% if (0 == user_type) render("管理员"); else render("用户"); %></div>
+                </div>
+            </div>
+            <div class="footer-actions">
+                <button class="action-btn logout-btn" id="logoutBtn" title="退出登录">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+                <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
+                    <i class="fas fa-moon" id="themeIcon"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ============================================================
+    主内容
+    ============================================================ -->
+    <main class="main-content" id="mainContent">
+
+        <!-- 顶部栏 -->
+        <header class="topbar">
+            <div class="left-group">
+                <button class="menu-toggle" id="menuToggle" aria-label="打开菜单">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 id="pageTitle">📊 数据看板</h1>
+            </div>
+            <div class="page-actions" id="pageActions">
+                <!-- 由 JS 动态渲染 -->
+            </div>
+        </header>
+
+        <!-- ============================================================
+        视图: 数据看板
+        ============================================================ -->
+        <section class="page-view" id="view-dashboard">
+            <div class="stats-grid" id="statsGrid">
+                <!-- 由 JS 动态渲染 -->
+            </div>
+
+            <div class="glass-card">
+                <div class="card-title"><i class="fas fa-clock"></i> 最近活动</div>
+                <ul class="activity-list" id="activityList">
+                    <!-- 由 JS 动态渲染 -->
+                </ul>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        视图: 用户管理
+        ============================================================ -->
+        <section class="page-view" id="view-users">
+            <div class="glass-card">
+                <div class="flex-between">
+                    <div class="card-title" style="margin-bottom:0;"><i class="fas fa-user-cog"></i> 用户列表</div>
+                    <button class="btn btn-primary" id="addUserBtn" style="padding:0.4rem 1.1rem;border-radius:40px;border:none;background:var(--primary-gradient);color:#fff;font-weight:var(--fw-regular);cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;transition:all 0.25s;font-family:inherit;font-size:0.85rem;">
+                        <i class="fas fa-plus"></i> <span>新增用户</span>
+                    </button>
+                </div>
+                <div class="table-wrap mt-2">
+                    <table>
+                        <thead>
+                            <tr><th>用户</th><th>邮箱</th><th>角色</th><th>状态</th><th style="text-align:right;">操作</th></tr>
+                        </thead>
+                        <tbody id="userTableBody">
+                            <!-- 由 JS 动态渲染 -->
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted text-center" style="margin-top:0.8rem;font-size:0.8rem;font-weight:var(--fw-light);" id="userCountInfo">共 0 位用户</p>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        视图: 模板管理 (上传音频+文字)
+        ============================================================ -->
+        <section class="page-view" id="view-templates">
+            <div class="glass-card">
+                <div class="card-title"><i class="fas fa-upload"></i> 上传音频 &amp; 文字作为模板</div>
+
+                <!-- 新增：模板名称输入 -->
+                <div style="margin-bottom:1.2rem;">
+                    <label style="font-weight:var(--fw-regular);display:block;margin-bottom:0.3rem;color:var(--text-secondary);font-size:0.88rem;">
+                        <i class="fas fa-tag" style="color:var(--primary-start);"></i> 模板名称
+                    </label>
+                    <input type="text" id="templateNameInput" class="gen-textarea" style="min-height:auto;padding:0.5rem 1rem;" placeholder="输入模板名称（可选，留空则使用文件名）" />
+                </div>
+
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                    <p>拖拽音频文件到此处，或 <span class="highlight">点击选择文件</span></p>
+                    <p style="font-size:0.75rem;margin-top:0.1rem;opacity:0.6;">支持 MP3, WAV, M4A · 最大 20MB</p>
+                    <input type="file" id="fileInput" accept="audio/*" />
+                    <!-- 上传状态显示区域 -->
+                    <div class="upload-status" id="uploadStatus">
+                        <span class="status-icon" id="statusIcon"></span>
+                        <span id="statusText"></span>
+                    </div>
+                </div>
+
+                <div style="margin-top:1.4rem;">
+                    <label style="font-weight:var(--fw-regular);display:block;margin-bottom:0.3rem;color:var(--text-secondary);font-size:0.88rem;">
+                        <i class="fas fa-file-alt" style="color:var(--primary-start);"></i> 音频对应的文字内容（转录文本）
+                    </label>
+                    <textarea class="gen-textarea" id="transcriptInput" placeholder="请输入这段音频对应的文字内容，用于训练克隆模型…" style="min-height:70px;"></textarea>
+                </div>
+
+                <button class="btn btn-primary" id="saveTemplateBtn" style="margin-top:1.1rem;padding:0.45rem 2rem;border-radius:40px;border:none;background:var(--primary-gradient);color:#fff;font-weight:var(--fw-regular);cursor:pointer;transition:all 0.25s;font-family:inherit;font-size:0.88rem;display:inline-flex;align-items:center;gap:0.5rem;">
+                    <i class="fas fa-save"></i> 保存模板
+                </button>
+
+                <!-- 模板列表 -->
+                <div class="mt-3">
+                    <div class="flex-between" style="margin-bottom:0.8rem;">
+                        <span class="card-title" style="margin-bottom:0;font-size:0.95rem;"><i class="fas fa-list-ul"></i> 模板列表</span>
+                        <span class="text-muted" style="font-size:0.8rem;font-weight:var(--fw-light);" id="templateCountLabel">共 0 个模板</span>
+                    </div>
+                    <div class="template-grid" id="templateGrid">
+                        <!-- 由 JS 动态渲染 -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        视图: 音频生成 (选择模板 + 输入文字)
+        ============================================================ -->
+        <section class="page-view" id="view-generate">
+            <div class="glass-card">
+                <div class="card-title"><i class="fas fa-pen-fancy"></i> 选择模板，生成克隆音频</div>
+
+                <!-- 选择模板 -->
+                <div class="gen-select-wrap">
+                    <label><i class="fas fa-folder-open" style="color:var(--primary-start);"></i> 选择模板</label>
+                    <select id="templateSelect">
+                        <option value="">— 请先创建模板 —</option>
+                    </select>
+                    <span class="selected-hint" id="selectedHint">未选择</span>
+                </div>
+
+                <!-- 显示选中模板的文字内容 -->
+                <div style="margin-bottom:1rem;padding:0.6rem 1rem;background:var(--bg-glass);border-radius:var(--radius-sm);border:var(--border-glass);font-size:0.85rem;color:var(--text-muted);font-weight:var(--fw-light);display:none;" id="selectedTranscriptPreview">
+                    <i class="fas fa-quote-left" style="opacity:0.3;margin-right:0.4rem;"></i>
+                    <span id="selectedTranscriptText"></span>
+                </div>
+
+                <!-- 输入要生成的文字 -->
+                <label style="font-weight:var(--fw-regular);display:block;margin-bottom:0.3rem;color:var(--text-secondary);font-size:0.88rem;">
+                    <i class="fas fa-pen" style="color:var(--primary-start);"></i> 输入要生成音频的文字内容
+                </label>
+                <textarea class="gen-textarea" id="generateInput" placeholder="输入您想要用克隆声音朗读的文字内容…" style="min-height:110px;"></textarea>
+
+                <div style="display:flex;gap:0.8rem;margin-top:1.1rem;flex-wrap:wrap;">
+                    <button class="btn btn-primary" id="generateBtn" style="padding:0.45rem 2rem;border-radius:40px;border:none;background:var(--primary-gradient);color:#fff;font-weight:var(--fw-regular);cursor:pointer;transition:all 0.25s;font-family:inherit;font-size:0.88rem;display:inline-flex;align-items:center;gap:0.5rem;">
+                        <i class="fas fa-play"></i> 生成音频
+                    </button>
+                    <button class="btn btn-outline" id="clearGenBtn" style="padding:0.45rem 1.6rem;border-radius:40px;border:var(--border-glass);background:var(--bg-glass);color:var(--text-secondary);font-weight:var(--fw-regular);cursor:pointer;transition:all 0.25s;font-family:inherit;font-size:0.88rem;display:inline-flex;align-items:center;gap:0.4rem;">
+                        <i class="fas fa-eraser"></i> 清空
+                    </button>
+                </div>
+
+                <!-- 生成结果 -->
+                <div id="genResult" style="display:none;" class="gen-output mt-2">
+                    <div class="audio-player">
+                        <audio controls id="genAudioPlayer">
+                            <source src="" type="audio/mpeg" />
+                            您的浏览器不支持 audio 元素。
+                        </audio>
+                    </div>
+                    <div class="gen-meta">
+                        <span id="genTimeLabel">刚刚生成</span>
+                    </div>
+                </div>
+
+                <!-- 生成历史 -->
+                <div class="mt-3">
+                    <div class="card-title" style="font-size:0.95rem;margin-bottom:0.6rem;"><i class="fas fa-history"></i> 生成历史</div>
+                    <ul class="activity-list" id="genHistoryList">
+                        <!-- 由 JS 动态渲染 -->
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ============================================================
+    模态框: 新增 / 编辑用户
+    ============================================================ -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal-box">
+            <button class="modal-close" id="modalClose"><i class="fas fa-times"></i></button>
+            <h2 id="modalTitle">新增用户</h2>
+            <p class="sub" id="modalSub">填写用户信息，创建新账户。</p>
+            <div class="form-group">
+                <label>姓名</label>
+                <input type="text" id="modalUserName" placeholder="例如：张三" />
+            </div>
+            <div class="form-group">
+                <label>邮箱</label>
+                <input type="email" id="modalUserEmail" placeholder="zhangsan@example.com" />
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="passwd" id="modalUserPassword" placeholder="" />
+            </div>
+            <div class="form-group">
+                <label>角色</label>
+                <select id="modalUserRole">
+                    <option value="user">普通用户</option>
+                    <option value="admin">管理员</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" id="modalCancel">取消</button>
+                <button class="btn btn-primary" id="modalConfirm">确认创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ============================================================
+    JavaScript (jQuery) – 直接使用选择器，无 DOM 缓存变量
+    ============================================================ -->
+    <script>
+        $(function() {
+
+            // ============================================================
+            // 1. 数据 (fallback) – 增加 title 字段
+            // ============================================================
+            var mockUsers = [
+                <% {
+                    mysqlite_query_param_t *param = mysqlite_exec_query("SELECT * FROM system_user");
+                    if (param) {
+                        while (!mysqlite_query_is_eof(param)) {
+                            int user_id_p = mysqlite_query_get_int_field(param, "id", 0);
+                            int user_type_p = mysqlite_query_get_int_field(param, "type", 0);
+                            int enable = mysqlite_query_get_int_field(param, "type", 0);
+                            const char *name = mysqlite_query_get_string_field(param, "user", "");
+                            const char *mail = mysqlite_query_get_string_field(param, "mail", "");
+                            if (2 == user_type_p) {
+                                mysqlite_query_next_row(param);
+                                continue;
+                            }
+                            %>
+                            {
+                                id: <% render("%d", user_id_p); %>,
+                                name: '<% render("%s", name); %>',
+                                email: '<% render("%s", mail); %>',
+                                role: '<% if (0 == user_type_p) render("admin"); else render("user"); %>',
+                                status: '<% if (1 == enable) render("active"); else render("inactive"); %>'
+                            },
+                            <%
+                            mysqlite_query_next_row(param);
+                        }
+                        mysqlite_query_close(param);
+                    }
+                } %>
+            ];
+            var mockTemplates = [
+                <% {
+                    char filter[512] = {0};
+                    if (1 == user_type) {
+                        sprintf(filter, "WHERE user_id = %d", user_id);
+                    }
+                    mysqlite_query_param_t *param = mysqlite_exec_query("SELECT * FROM template %s", filter);
+                    if (param) {
+                        while (!mysqlite_query_is_eof(param)) {
+                            int template_id = mysqlite_query_get_int_field(param, "id", 0);
+                            const char *filename = mysqlite_query_get_string_field(param, "filename", "");
+                            const char *name = mysqlite_query_get_string_field(param, "name", "");
+                            const char *content = mysqlite_query_get_string_field(param, "content", "");
+                            %>
+                            {
+                                id: <% render("%d", template_id); %>,
+                                name: '<% render("%s", filename); %>',
+                                title: '<% render("%s", name); %>',
+                                size: '<% render("0 MB"); %>',
+                                transcript: '<% render("%s", content); %>',
+                                status: '已就绪'
+                            },
+                            <%
+                            mysqlite_query_next_row(param);
+                        }
+                        mysqlite_query_close(param);
+                    }
+                } %>
+            ];
+            /*
+            var mockActivities = [
+                { text: 'Admin 上传了模板 "demo_04.wav"', time: '5分钟前', type: 'upload' },
+                { text: '李娜 生成了 2 段克隆音频', time: '18分钟前', type: 'generate' },
+                { text: '王磊 更新了个人资料', time: '45分钟前', type: 'user' },
+                { text: '系统自动清理了 8 个临时文件', time: '1小时前', type: 'system' },
+                { text: '赵雪 提交了音频克隆请求', time: '2小时前', type: 'clone' },
+            ];
+            */
+            var mockActivities = [
+                <% {
+                    char filter[512] = {0};
+                    if (1 == user_type) {
+                        sprintf(filter, "AND h.user_id = %d", user_id);
+                    }
+                    mysqlite_query_param_t *param = mysqlite_exec_query(
+                        "SELECT h.content,h.time,u.user,t.name "
+                        "    FROM generate h, system_user u, template t "
+                        "    WHERE "
+                        "        h.user_id = u.id "
+                        "        AND h.template_id = t.id %s "
+                        "        ORDER BY h.id DESC", filter);
+                    if (param) {
+                        while (!mysqlite_query_is_eof(param)) {
+                            const char *content = mysqlite_query_get_string_field(param, "content", "");
+                            const char *time = mysqlite_query_get_string_field(param, "time", "");
+                            const char *user = mysqlite_query_get_string_field(param, "user", "");
+                            const char *name = mysqlite_query_get_string_field(param, "name", "");
+                            %>
+                            {
+                                text: '<% render("%s 使用 \"%s\" 生成了音频：\"%s\"", user, name, content); %>',
+                                time: '<% render("%s", time); %>',
+                                type: 'clone'
+                            },
+                            <%
+                            mysqlite_query_next_row(param);
+                        }
+                        mysqlite_query_close(param);
+                    }
+                } %>
+            ];
+            var mockGenHistory = [
+                <% {
+                    char filter[512] = {0};
+                    if (1 == user_type) {
+                        sprintf(filter, "AND h.user_id = %d", user_id);
+                    }
+                    mysqlite_query_param_t *param = mysqlite_exec_query(
+                        "SELECT h.content,h.time,t.name "
+                        "    FROM generate h, template t "
+                        "    WHERE "
+                        "        h.template_id = t.id %s "
+                        "        ORDER BY h.id DESC", filter);
+                    if (param) {
+                        while (!mysqlite_query_is_eof(param)) {
+                            const char *content = mysqlite_query_get_string_field(param, "content", "");
+                            const char *time = mysqlite_query_get_string_field(param, "time", "");
+                            const char *name = mysqlite_query_get_string_field(param, "name", "");
+                            %>
+                            {
+                                text: '<% render("%s", content); %>',
+                                time: '<% render("%s", time); %>',
+                                template: '<% render("%s", name); %>'
+                            },
+                            <%
+                            mysqlite_query_next_row(param);
+                        }
+                        mysqlite_query_close(param);
+                    }
+                } %>
+            ];
+
+            var currentUser = {
+                id: <% render("%d", user_id); %>,
+                name: '<% render("%s", username); %>',
+                email: '',
+                role: '<% if (user_type == 0) render("admin"); else render("user"); %>'
+                };
+
+            // ============================================================
+            // 2. 状态
+            // ============================================================
+            var users = $.map(mockUsers, function(u) { return $.extend({}, u); });
+            var templates = $.map(mockTemplates, function(t) { return $.extend({}, t); });
+            var activities = $.map(mockActivities, function(a) { return $.extend({}, a); });
+            var genHistory = $.map(mockGenHistory, function(g) { return $.extend({}, g); });
+            var currentView = 'dashboard';
+            var nextTemplateId = 20;
+            var nextUserId = 100;
+            var isDark = false;
+            var editingUserId = null;
+
+            // ============================================================
+            // 3. 工具函数
+            // ============================================================
+            function showToast(msg, type) {
+                type = type || 'info';
+                var $toast = $('<div class="toast-item ' + type + '">' + msg + '</div>');
+                $('#toastContainer').append($toast);
+                setTimeout(function() {
+                    $toast.addClass('hiding');
+                    setTimeout(function() { $toast.remove(); }, 400);
+                }, 2600);
+            }
+            function getRoleLabel(role) { return role === 'admin' ? '管理员' : '普通用户'; }
+            function getStatusLabel(status) { return status === 'active' ? '活跃' : '未激活'; }
+            function isAdmin() { return currentUser && currentUser.role === 'admin'; }
+            function formatTime() { var now = new Date(); return String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'); }
+            function getTemplateDisplayName(tpl) { return tpl.title || tpl.name || '未命名模板'; }
+
+            // ============================================================
+            // 4. 渲染函数
+            // ============================================================
+            function renderStats() {
+                if (!currentUser) {
+                    $('#statsGrid').html('<div class="stat-card" style="grid-column:1/-1;justify-content:center;padding:2rem;">请登录以查看数据</div>');
+                    return;
+                }
+                var totalUsers = users.length;
+                var totalTemplates = templates.length;
+                var totalGenerations = genHistory.length;
+                var storage = '2.8 GB';
+                $('#statsGrid').html(
+                    '<div class="stat-card"><div class="stat-icon"><i class="fas fa-users"></i></div><div class="stat-info"><div class="stat-value">'+totalUsers+'</div><div class="stat-label">总用户</div></div></div>' +
+                    '<div class="stat-card"><div class="stat-icon"><i class="fas fa-folder-open"></i></div><div class="stat-info"><div class="stat-value">'+totalTemplates+'</div><div class="stat-label">模板数</div></div></div>' +
+                    '<div class="stat-card"><div class="stat-icon"><i class="fas fa-music"></i></div><div class="stat-info"><div class="stat-value">'+totalGenerations+'</div><div class="stat-label">生成次数</div></div></div>' +
+                    '<div class="stat-card"><div class="stat-icon"><i class="fas fa-database"></i></div><div class="stat-info"><div class="stat-value">'+storage+'</div><div class="stat-label">存储使用</div></div></div>'
+                );
+            }
+
+            function renderActivities() {
+                if (!currentUser) {
+                    $('#activityList').html('<li class="text-muted" style="font-weight:var(--fw-light);">请登录查看活动</li>');
+                    return;
+                }
+                var html = '';
+                activities.slice(0,6).forEach(function(a) {
+                    var dotClass = 'activity-dot';
+                    if (a.type === 'generate') dotClass += ' green';
+                    else if (a.type === 'user') dotClass += ' orange';
+                    else if (a.type === 'clone') dotClass += ' purple';
+                    html += '<li><span class="'+dotClass+'"></span><span>'+a.text+'</span><span class="activity-time">'+a.time+'</span></li>';
+                });
+                $('#activityList').html(html || '<li class="text-muted" style="font-weight:var(--fw-light);">暂无活动</li>');
+            }
+
+            function renderUsers() {
+                if (!currentUser) {
+                    $('#userTableBody').html('<tr><td colspan="5" class="text-muted text-center" style="font-weight:var(--fw-light);padding:1.5rem 0;">请登录以查看用户</td></tr>');
+                    $('#userCountInfo').text('请登录');
+                    $('#addUserBtn').hide();
+                    return;
+                }
+                var admin = isAdmin();
+                var html = '';
+                users.forEach(function(u) {
+                    var canDelete = admin && u.id !== currentUser.id;
+                    html += '<tr>' +
+                        '<td><div style="display:flex;align-items:center;gap:0.5rem;"><span class="user-avatar-sm">'+u.name.charAt(0)+'</span><span style="font-weight:var(--fw-regular);">'+u.name+'</span></div></td>' +
+                        '<td>'+u.email+'</td>' +
+                        '<td><span class="role-badge '+(u.role==='admin'?'admin':'')+'">'+getRoleLabel(u.role)+'</span></td>' +
+                        '<td><span class="status-badge '+(u.status==='inactive'?'inactive':'')+'">'+getStatusLabel(u.status)+'</span></td>' +
+                        '<td style="text-align:right;"><div class="table-actions">' +
+                        (canDelete ? '<button class="delete-user" data-id="'+u.id+'" title="删除用户"><i class="fas fa-trash"></i></button>' : '') +
+                        (admin ? '<button class="edit-btn" data-id="'+u.id+'" title="编辑"><i class="fas fa-edit"></i></button>' : '') +
+                        '</div></td></tr>';
+                });
+                $('#userTableBody').html(html || '<tr><td colspan="5" class="text-muted text-center" style="font-weight:var(--fw-light);padding:1.5rem 0;">暂无用户</td></tr>');
+                $('#userCountInfo').text('共 '+users.length+' 位用户');
+                $('#addUserBtn').toggle(admin);
+
+                // 删除用户
+                $('.delete-user').off('click').on('click', function() {
+                    var id = parseInt($(this).data('id'));
+                    if (confirm('确定要删除该用户吗？此操作不可撤销。')) {
+                        var formData = new FormData();
+                        formData.append("method", "delete");
+                        formData.append("user_id", id);
+                        $.ajax({
+                            url: '/system/user',
+                            type: 'POST',
+                            data: formData,
+                            processData: false,
+                            contentType: false,
+                            dataType: 'json',
+                            success: function(res) {
+                                if (0 == res.status) {
+                                    users = users.filter(function(u){ return u.id !== id; });
+                                    renderUsers(); renderStats();
+                                    showToast('用户已删除', 'success');
+                                }
+                                else {
+                                    showToast(res.message || '删除失败', 'error');
+                                }
+                            },
+                            error: function() {
+                                showToast('网络错误，删除失败', 'error');
+                            }
+                        });
+                    }
+                });
+                // 编辑事件
+                $('.edit-btn').off('click').on('click', function() {
+                    var id = parseInt($(this).data('id'));
+                    var user = users.find(function(u){ return u.id === id; });
+                    if (user) {
+                        editingUserId = id;
+                        $('#modalUserName').val(user.name);
+                        $('#modalUserEmail').val(user.email);
+                        $('#modalUserPassword').val("");
+                        $('#modalUserRole').val(user.role);
+                        $('#modalTitle').text('编辑用户');
+                        $('#modalSub').text('修改用户信息。');
+                        $('#modalConfirm').text('更新用户');
+                        $('#userModal').addClass('open');
+                    }
+                });
+            }
+
+            function renderTemplates() {
+                if (!currentUser) {
+                    $('#templateGrid').html('<div class="empty-state"><i class="fas fa-folder-open"></i>请登录以管理模板</div>');
+                    $('#templateCountLabel').text('请登录');
+                    $('#templateCountBadge').text('0');
+                    return;
+                }
+                if (templates.length === 0) {
+                    $('#templateGrid').html('<div class="empty-state"><i class="fas fa-folder-open"></i>暂无模板，请上传音频并填写文字内容。</div>');
+                    $('#templateCountLabel').text('共 0 个模板');
+                    $('#templateCountBadge').text('0');
+                    return;
+                }
+                var html = '';
+                templates.forEach(function(t) {
+                    var displayName = getTemplateDisplayName(t);
+                    html += '<div class="template-card" data-id="'+t.id+'">' +
+                        '<div class="tpl-name"><i class="fas fa-file-audio"></i> '+displayName+'</div>' +
+                        '<div class="tpl-transcript">'+t.transcript+'</div>' +
+                        '<div class="tpl-meta"><span>'+t.size+' · '+t.status+'</span>' +
+                        '<div class="tpl-actions">' +
+                        '<button class="select-btn" data-id="'+t.id+'" title="选择此模板"><i class="fas fa-check"></i> 选择</button>' +
+                        '<button class="delete-tpl" data-id="'+t.id+'" title="删除模板"><i class="fas fa-trash"></i></button>' +
+                        '</div></div></div>';
+                });
+                $('#templateGrid').html(html);
+                $('#templateCountLabel').text('共 '+templates.length+' 个模板');
+                $('#templateCountBadge').text(templates.length);
+
+                $('.select-btn').off('click').on('click', function() {
+                    var id = parseInt($(this).data('id'));
+                    selectTemplate(id);
+                });
+                $('.delete-tpl').off('click').on('click', function() {
+                    var id = parseInt($(this).data('id'));
+                    if (confirm('确定要删除该模板吗？')) {
+                        var formData = new FormData();
+                        formData.append("method", "delete");
+                        formData.append("template_id", id);
+                        $.ajax({
+                            url: '/global/template',
+                            type: 'POST',
+                            data: formData,
+                            processData: false,
+                            contentType: false,
+                            dataType: 'json',
+                            success: function(res) {
+                                if (0 == res.status) {
+                                    templates = templates.filter(function(t){ return t.id !== id; });
+                                    renderTemplates(); updateTemplateSelect(); renderStats();
+                                    showToast('模板已删除', 'success');
+                                    var currentVal = parseInt($('#templateSelect').val());
+                                    if (currentVal === id) { $('#templateSelect').val(''); $('#selectedHint').text('未选择'); $('#selectedTranscriptPreview').hide(); }
+                                }
+                                else {
+                                    showToast(res.message || '删除失败', 'error');
+                                }
+                            },
+                            error: function() { showToast('网络错误，删除失败', 'error'); }
+                        });
+                    }
+                });
+            }
+
+            function updateTemplateSelect() {
+                if (!currentUser) {
+                    $('#templateSelect').html('<option value="">— 请登录 —</option>');
+                    $('#selectedHint').text('未选择');
+                    $('#selectedTranscriptPreview').hide();
+                    return;
+                }
+                var currentVal = $('#templateSelect').val();
+                var html = '<option value="">— 请选择模板 —</option>';
+                templates.forEach(function(t) {
+                    var displayName = getTemplateDisplayName(t);
+                    var selected = (currentVal == t.id) ? 'selected' : '';
+                    html += '<option value="'+t.id+'" '+selected+'>'+displayName+'</option>';
+                });
+                $('#templateSelect').html(html);
+                if (currentVal && !templates.find(function(t){ return t.id == currentVal; })) {
+                    $('#templateSelect').val('');
+                    $('#selectedHint').text('未选择');
+                    $('#selectedTranscriptPreview').hide();
+                } else if (currentVal) {
+                    var selectedTpl = templates.find(function(t){ return t.id == currentVal; });
+                    if (selectedTpl) {
+                        $('#selectedHint').text('已选择: '+getTemplateDisplayName(selectedTpl));
+                        $('#selectedTranscriptText').text(selectedTpl.transcript);
+                        $('#selectedTranscriptPreview').show();
+                    }
+                }
+            }
+
+            function selectTemplate(id) {
+                if (!currentUser) { showToast('请先登录', 'error'); return; }
+                var tpl = templates.find(function(t){ return t.id === id; });
+                if (!tpl) { showToast('模板不存在', 'error'); return; }
+                $('#templateSelect').val(id);
+                $('#selectedHint').text('已选择: '+getTemplateDisplayName(tpl));
+                $('#selectedTranscriptText').text(tpl.transcript);
+                $('#selectedTranscriptPreview').show();
+                showToast('已选择模板: '+getTemplateDisplayName(tpl), 'info');
+                switchView('generate');
+            }
+
+            function renderGenHistory() {
+                if (!currentUser) {
+                    $('#genHistoryList').html('<li class="text-muted" style="padding:0.4rem 0;font-weight:var(--fw-light);">请登录查看生成历史</li>');
+                    $('#genCountBadge').text('0');
+                    return;
+                }
+                if (genHistory.length === 0) {
+                    $('#genHistoryList').html('<li class="text-muted" style="padding:0.4rem 0;font-weight:var(--fw-light);">暂无生成记录</li>');
+                    $('#genCountBadge').text('0');
+                    return;
+                }
+                var html = '';
+                genHistory.slice().forEach(function(h) {
+                    var tplName = h.template || '未知模板';
+                    html += '<li><span class="activity-dot green"></span><span style="font-weight:var(--fw-light);">“'+h.text+'”</span><span style="font-size:0.7rem;color:var(--text-muted);margin-left:0.5rem;font-weight:var(--fw-light);">['+tplName+']</span><span class="activity-time">'+h.time+'</span></li>';
+                });
+                $('#genHistoryList').html(html);
+                $('#genCountBadge').text(genHistory.length);
+            }
+
+            function refreshAll() {
+                renderStats(); renderActivities(); renderUsers(); renderTemplates(); updateTemplateSelect(); renderGenHistory();
+                updateUserInfo(); updateAuthButtons();
+            }
+
+            function updateUserInfo() {
+                if (currentUser) {
+                    $('#userAvatar').text(currentUser.name.charAt(0));
+                    $('#userName').text(currentUser.name);
+                    $('#userRole').text(currentUser.role === 'admin' ? '管理员' : '普通用户');
+                } else {
+                    $('#userAvatar').text('?');
+                    $('#userName').text('未登录');
+                    $('#userRole').text('请登录');
+                }
+            }
+            function updateAuthButtons() {
+                if (currentUser) { $('#logoutBtn').show(); }
+                else { $('#logoutBtn').hide(); }
+            }
+
+            // ============================================================
+            // 5. 视图切换
+            // ============================================================
+            function switchView(viewId) {
+                if (!viewId) return;
+                if (!currentUser && viewId !== 'dashboard') {
+                    showToast('请先登录', 'error');
+                    viewId = 'dashboard';
+                }
+                if (viewId === 'users' && !(currentUser && isAdmin())) {
+                    showToast('您没有权限访问用户管理', 'error');
+                    return;
+                }
+                if (window.location.hash !== '#' + viewId) {
+                    history.replaceState(null, '', '#' + viewId);
+                }
+                $('.nav-item').removeClass('active');
+                $('.nav-item[data-view="'+viewId+'"]').addClass('active');
+                $('.page-view').removeClass('active');
+                var $target = $('#view-'+viewId);
+                if ($target.length) {
+                    $target.addClass('active');
+                    $target.css('animation', 'none');
+                    requestAnimationFrame(function(){ $target.css('animation', ''); });
+                }
+                currentView = viewId;
+                var titles = { dashboard: '📊 数据看板', users: '👥 用户管理', templates: '📂 模板管理', generate: '🎤 音频生成' };
+                $('#pageTitle').text(titles[viewId] || 'AudioClone');
+                var actionsHTML = '';
+                if (viewId === 'users' && currentUser && isAdmin()) {
+                    actionsHTML = '';
+                } else if (viewId === 'templates' && currentUser) {
+                    actionsHTML = '<span class="text-muted" style="font-size:0.8rem;font-weight:var(--fw-light);"><i class="fas fa-folder-open"></i> 共 '+templates.length+' 个模板</span>';
+                } else if (viewId === 'generate' && currentUser) {
+                    actionsHTML = '<span class="text-muted" style="font-size:0.8rem;font-weight:var(--fw-light);"><i class="fas fa-history"></i> 共 '+genHistory.length+' 条记录</span>';
+                }
+                $('#pageActions').html(actionsHTML);
+                $('#sidebar').removeClass('open');
+            }
+
+            // ============================================================
+            // 6. 模态框操作
+            // ============================================================
+            function openAddUserModal() {
+                if (!currentUser || !isAdmin()) { showToast('权限不足', 'error'); return; }
+                editingUserId = null;
+                $('#modalUserName').val('');
+                $('#modalUserEmail').val('');
+                $('#modalUserPassword').val('');
+                $('#modalUserRole').val('user');
+                $('#modalTitle').text('新增用户');
+                $('#modalSub').text('填写用户信息，创建新账户。');
+                $('#modalConfirm').text('确认创建');
+                $('#userModal').addClass('open');
+            }
+            function closeModal() { $('#userModal').removeClass('open'); }
+
+            function handleUserSubmit() {
+                if (!currentUser || !isAdmin()) { showToast('权限不足', 'error'); closeModal(); return; }
+                var name = $('#modalUserName').val().trim();
+                var email = $('#modalUserEmail').val().trim();
+                var passwd = $('#modalUserPassword').val().trim();
+                var role = $('#modalUserRole').val();
+                if (!name || !email) { showToast('请完整填写姓名和邮箱', 'error'); return; }
+                if (!email.includes('@')) { showToast('请输入有效的邮箱地址', 'error'); return; }
+
+                if (editingUserId) {
+                    var userData = { name: name, email: email, role: role };
+                    var formData = new FormData();
+                    formData.append("method", "edit");
+                    formData.append("user_id", editingUserId);
+                    formData.append("name", name);
+                    formData.append("mail", email);
+                    formData.append("passwd", passwd);
+                    formData.append("type", "admin" == role ? 0 : 1);
+                    $.ajax({
+                        url: '/system/user',
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        dataType: 'json',
+                        success: function(res) {
+                            if (0 == res.status) {
+                                var idx = users.findIndex(function(u){ return u.id === editingUserId; });
+                                if (idx > -1) { users[idx] = $.extend(users[idx], userData); }
+                                renderUsers(); renderStats();
+                                showToast('用户信息已更新', 'success');
+                                closeModal();
+                            }
+                            else {
+                                showToast(res.message || '更新失败', 'error');
+                            }
+                        },
+                        error: function() {
+                            showToast('网络错误，更新失败', 'error');
+                        }
+                    });
+                }
+                else {
+                    var newUser = { name: name, email: email, role: role, status: 'active' };
+                    var formData = new FormData();
+                    formData.append("method", "add");
+                    formData.append("name", name);
+                    formData.append("mail", email);
+                    formData.append("passwd", passwd);
+                    formData.append("type", "admin" == role ? 0 : 1);
+                    $.ajax({
+                        url: '/system/user',
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        dataType: 'json',
+                        success: function(res) {
+                            if (0 == res.status) {
+                                var createdUser = res.data || newUser;
+                                createdUser.id = createdUser.id || nextUserId++;
+                                users.push(createdUser);
+                                renderUsers(); renderStats();
+                                showToast('用户 ' + name + ' 已创建', 'success');
+                                activities.unshift({ text: currentUser.name + ' 创建了用户 "' + name + '"', time: '刚刚', type: 'user' });
+                                renderActivities();
+                                closeModal();
+                            }
+                            else {
+                                showToast(res.message || '创建失败', 'error');
+                            }
+                        },
+                        error: function() {
+                            showToast('网络错误，创建失败', 'error');
+                        }
+                    });
+                }
+            }
+
+            // ============================================================
+            // 7. 生成音频
+            // ============================================================
+            function handleGenerate() {
+                if (!currentUser) { showToast('请先登录', 'error'); return; }
+                var templateId = parseInt($('#templateSelect').val());
+                if (!templateId) { showToast('请先选择一个模板', 'error'); return; }
+                var tpl = templates.find(function(t){ return t.id === templateId; });
+                if (!tpl) { showToast('所选模板不存在', 'error'); return; }
+                var text = $('#generateInput').val().trim();
+                if (!text) { showToast('请输入要生成音频的文字内容', 'error'); return; }
+
+                var payload = { templateId: templateId, text: text };
+                $('#generateBtn').text('生成中...').prop('disabled', true);
+                var formData = new FormData();
+                formData.append("user_id", <% render("%d", user_id); %>);
+                formData.append("template_id", templateId);
+                formData.append("content", text);
+                $.ajax({
+                    url: '/global/generate',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json',
+                    success: function(res) {
+                        $('#generateBtn').html('<i class="fas fa-play"></i> 生成音频').prop('disabled', false);
+                        if (0 == res.status) {
+                            $('#genResult').show();
+                            var audioSrc = "/data/" + res.audio_name;
+                            $('#genAudioPlayer source').attr('src', audioSrc);
+                            $('#genAudioPlayer')[0].load();
+                            var timeStr = formatTime();
+                            var displayName = getTemplateDisplayName(tpl);
+                            $('#genTimeLabel').text('⏱️ 生成于 ' + timeStr + ' · 模板: ' + displayName);
+                            var genEntry = { text: text, time: timeStr + ' 生成', template: displayName };
+                            genHistory.push(genEntry);
+                            renderGenHistory(); renderStats();
+                            activities.unshift({ text: currentUser.name + ' 使用 "' + displayName + '" 生成了音频: "' + (text.length > 20 ? text.substring(0,20)+'…' : text) + '"', time: '刚刚', type: 'generate' });
+                            renderActivities();
+                            showToast('🎧 音频生成成功！', 'success');
+                        }
+                        else {
+                            showToast(res.message || '生成失败', 'error');
+                        }
+                    },
+                    error: function() {
+                        $('#generateBtn').html('<i class="fas fa-play"></i> 生成音频').prop('disabled', false);
+                        showToast('网络错误，生成失败', 'error');
+                    }
+                });
+            }
+
+            // ============================================================
+            // 8. 主题切换
+            // ============================================================
+            function toggleTheme() {
+                isDark = !isDark;
+                $('html').attr('data-theme', isDark ? 'dark' : 'light');
+                $('#themeIcon').attr('class', isDark ? 'fas fa-sun' : 'fas fa-moon');
+                localStorage.setItem('audioclone-theme', isDark ? 'dark' : 'light');
+            }
+            function loadTheme() {
+                var saved = localStorage.getItem('audioclone-theme');
+                if (saved === 'dark') {
+                    isDark = true;
+                    $('html').attr('data-theme', 'dark');
+                    $('#themeIcon').attr('class', 'fas fa-sun');
+                }
+            }
+
+            // ============================================================
+            // 9. 事件绑定（含模板名称）
+            // ============================================================
+            // 导航
+            $('.nav-item').on('click', function() {
+                var view = $(this).data('view');
+                if (view) switchView(view);
+            });
+            // 菜单
+            $('#menuToggle').on('click', function() { $('#sidebar').toggleClass('open'); });
+            $('#sidebarClose').on('click', function() { $('#sidebar').removeClass('open'); });
+            $(document).on('click', function(e) {
+                if ($(window).width() <= 768) {
+                    if (!$('#sidebar').is(e.target) && !$('#sidebar').has(e.target).length &&
+                        !$('#menuToggle').is(e.target) && !$('#menuToggle').has(e.target).length) {
+                        $('#sidebar').removeClass('open');
+                    }
+                }
+            });
+
+            // 用户模态框
+            $('#addUserBtn').on('click', openAddUserModal);
+            $('#modalClose').on('click', closeModal);
+            $('#modalCancel').on('click', closeModal);
+            $('#userModal').on('click', function(e) { if ($(e.target).is(this)) closeModal(); });
+            $('#modalConfirm').on('click', handleUserSubmit);
+
+            // ============================================================
+            // 上传模板 – 带状态显示和模板名称
+            // ============================================================
+            // 获取状态显示元素
+            var $uploadStatus = $('#uploadStatus');
+            var $statusIcon = $('#statusIcon');
+            var $statusText = $('#statusText');
+
+            // 状态更新函数
+            function setUploadStatus(iconClass, text, isSuccess, isError) {
+                $uploadStatus.addClass('show');
+                $statusIcon.attr('class', 'status-icon ' + iconClass);
+                $statusText.text(text);
+                if (isSuccess) {
+                    $uploadStatus.css('border-color', '#22C55E');
+                } else if (isError) {
+                    $uploadStatus.css('border-color', '#EF4444');
+                } else {
+                    $uploadStatus.css('border-color', '');
+                }
+            }
+
+            // 点击上传区域
+            $('#uploadZone').on('click', function(e) {
+                if (e.target === $('#fileInput')[0]) {
+                    return;
+                }
+                e.preventDefault();
+                if (!currentUser) {
+                    showToast('请先登录', 'error');
+                    return;
+                }
+                if ($('#fileInput').length) {
+                    $('#fileInput').click();
+                }
+            });
+
+            $('#uploadZone').on('dragover', function(e) {
+                e.preventDefault();
+                $(this).addClass('dragover');
+            });
+            $('#uploadZone').on('dragleave', function() {
+                $(this).removeClass('dragover');
+            });
+            $('#uploadZone').on('drop', function(e) {
+                e.preventDefault();
+                $(this).removeClass('dragover');
+                if (!currentUser) {
+                    showToast('请先登录', 'error');
+                    return;
+                }
+                if (e.originalEvent.dataTransfer.files.length) {
+                    var file = e.originalEvent.dataTransfer.files[0];
+                    handleFile(file);
+                }
+            });
+
+            $('#fileInput').on('change', function() {
+                if (!currentUser) {
+                    showToast('请先登录', 'error');
+                    $(this).val('');
+                    return;
+                }
+                if (this.files && this.files.length) {
+                    handleFile(this.files[0]);
+                }
+                $(this).val('');
+            });
+
+            var new_filename = '';
+            function handleFile(file) {
+                try {
+                    if (!currentUser) { showToast('请先登录', 'error'); return; }
+                    if (!file) { showToast('无效文件', 'error'); return; }
+                    if (!file.type.startsWith('audio/')) { showToast('请上传音频文件 (MP3, WAV, M4A 等)', 'error'); return; }
+                    if (file.size > 20 * 1024 * 1024) { showToast('文件大小超过 20MB 限制', 'error'); return; }
+
+                    var fileSize = (file.size / 1024 / 1024).toFixed(1) + ' MB';
+
+                    // 显示上传中状态
+                    setUploadStatus('loading fas fa-spinner', '正在上传 "' + file.name + '" (' + fileSize + ') ...', false, false);
+
+                    var formData = new FormData();
+                    formData.append("audio", file);
+
+                    $.ajax({
+                        url: '/global/template_upload',
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        dataType: 'json',
+                        success: function(res) {
+                            if (res.status == 0) {
+                                new_filename = res.filename;
+                                setUploadStatus('success fas fa-check-circle', '✅ 文件 "' + file.name + '" 已保存', true, false);
+                                showToast('✅文件 "' + file.name + '" 已保存', 'success');
+                            }
+                            else {
+                                setUploadStatus('error fas fa-exclamation-circle', '❌ 上传失败: ' + (res.message || '未知错误'), false, true);
+                                showToast(res.message || '上传失败', 'error');
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('上传错误:', error);
+                            setUploadStatus('error fas fa-exclamation-circle', '❌ 网络错误，上传失败', false, true);
+                            showToast('网络错误，上传失败', 'error');
+                        }
+                    });
+                }
+                catch (error) {
+                    console.error('上传文件时出错:', error);
+                    setUploadStatus('error fas fa-exclamation-circle', '❌ 上传失败，请重试', false, true);
+                    showToast('上传失败，请重试', 'error');
+                }
+            }
+
+            // 保存模板 (手动) – 支持模板名称
+            $('#saveTemplateBtn').on('click', function() {
+                if (!currentUser) { showToast('请先登录', 'error'); return; }
+                var transcript = $('#transcriptInput').val().trim();
+                if (!transcript) { showToast('请先输入音频对应的文字内容', 'error'); return; }
+                var templateTitle = $('#templateNameInput').val().trim();
+                if (!templateTitle) { showToast('请先输入音频对应的标题', 'error'); return; }
+                if (!new_filename) { showToast('请先选择文件', 'error'); return; }
+                var formData = new FormData();
+                formData.append("method", "add");
+                formData.append("name", templateTitle);
+                formData.append("content", transcript);
+                formData.append("filename", new_filename);
+                $.ajax({
+                    url: '/global/template',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json',
+                    success: function(res) {
+                        if (res.status == 0) {
+                            var newTemplate = res.data || {
+                                id: nextTemplateId++,
+                                name: templateTitle + '.txt',
+                                title: templateTitle,
+                                size: '0.1 MB',
+                                transcript: transcript,
+                                status: '已就绪'
+                            };
+                            templates.push(newTemplate);
+                            $('#transcriptInput').val('');
+                            $('#templateNameInput').val('');
+                            refreshAll();
+                            showToast('✅ 模板 "' + templateTitle + '" 已保存', 'success');
+                            activities.unshift({ text: currentUser.name + ' 保存了一个新模板 "' + templateTitle + '"', time: '刚刚', type: 'upload' });
+                            renderActivities();
+                        }
+                        else {
+                            showToast(res.message || '保存失败', 'error');
+                        }
+                    },
+                    error: function() {
+                        showToast('网络错误，保存失败', 'error');
+                    }
+                });
+            });
+
+            // 模板选择变化
+            $('#templateSelect').on('change', function() {
+                var val = $(this).val();
+                if (val) {
+                    var tpl = templates.find(function(t){ return t.id == val; });
+                    if (tpl) {
+                        $('#selectedHint').text('已选择: '+getTemplateDisplayName(tpl));
+                        $('#selectedTranscriptText').text(tpl.transcript);
+                        $('#selectedTranscriptPreview').show();
+                    }
+                } else {
+                    $('#selectedHint').text('未选择');
+                    $('#selectedTranscriptPreview').hide();
+                }
+            });
+
+            // 生成按钮
+            $('#generateBtn').on('click', handleGenerate);
+            $('#clearGenBtn').on('click', function() {
+                $('#generateInput').val('');
+                $('#genResult').hide();
+                showToast('已清空', 'info');
+            });
+
+            // 主题
+            $('#themeToggle').on('click', toggleTheme);
+
+            // 退出 / 重新登录
+            function logout() {
+                if (!currentUser) return;
+                if (confirm('确定要退出登录吗？')) {
+                    $.ajax({
+                        url: '/system/logout',
+                        type: 'POST',
+                        dataType: 'json',
+                        success: function(res) {
+                            location.reload();
+                        },
+                        error: function() {
+                            showToast('网络错误，删除失败', 'error');
+                        }
+                    });
+                }
+            }
+            $('#logoutBtn').on('click', logout);
+
+            // ============================================================
+            // 10. 路由初始化
+            // ============================================================
+            function getViewFromHash() {
+                var hash = window.location.hash.replace('#', '');
+                var validViews = ['dashboard', 'users', 'templates', 'generate'];
+                return validViews.indexOf(hash) !== -1 ? hash : 'dashboard';
+            }
+            function onHashChange() {
+                var view = getViewFromHash();
+                if (view !== currentView) { switchView(view); }
+            }
+            function init() {
+                loadTheme();
+                refreshAll();
+                var initialView = getViewFromHash();
+                switchView(initialView);
+                $(window).on('hashchange', onHashChange);
+                if (!isAdmin()) { $('#addUserBtn').hide(); }
+            }
+            init();
+
+            window.__app = {
+                users: users, templates: templates, activities: activities, genHistory: genHistory,
+                currentUser: currentUser, selectTemplate: selectTemplate, switchView: switchView,
+                logout: logout
+            };
+
+        });
+    </script>
+
+</body>
+</html>

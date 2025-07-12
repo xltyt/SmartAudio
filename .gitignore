@@ -5,6 +5,8 @@
 /*/test
 /*/dict
 /*/etc
+/amd64/manager
+/arm/manager
 /build
 /data/model
 /src/manager/documents/.expansive-lastgen
@@ -12,3 +14,6 @@
 /src/manager/documents/deploy/
 /src/manager/documents/dist/
 /src/manager/documents/db/
+/src/manager/etc/*.key
+/src/manager/etc/*.crt
+/src/manager/etc/*.srl

@@ -14,16 +14,18 @@ all : prep
 #
 prep:
 	@bash ../data/model_prepare.sh
-	echo "Build amd64..."
+	@echo "\033[32m=====> Build amd64...\033[0m"
 	make -C 3rd_party
 	make -j16 -C common
 	make -j16 -C search
 	MODE=gpu make -j16 -C search
-	echo "Build arm..."
+	make -j16 -C manager
+	@echo "\033[32m=====> Build arm...\033[0m"
 	PLATFORM=arm make -C 3rd_party
 	PLATFORM=arm make -j16 -C common
 	PLATFORM=arm make -j16 -C search
-	echo "Build Done"
+	PLATFORM=arm make -j16 -C manager
+	@echo "\033[32m=====> Build Done\033[0m"
 
 dist:
 	make dist -C search
