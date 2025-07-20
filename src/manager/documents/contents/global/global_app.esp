@@ -1626,8 +1626,6 @@
             var activities = $.map(mockActivities, function(a) { return $.extend({}, a); });
             var genHistory = $.map(mockGenHistory, function(g) { return $.extend({}, g); });
             var currentView = 'dashboard';
-            var nextTemplateId = 20;
-            var nextUserId = 100;
             var isDark = false;
             var editingUserId = null;
 
@@ -2020,8 +2018,8 @@
                         dataType: 'json',
                         success: function(res) {
                             if (0 == res.status) {
-                                var createdUser = res.data || newUser;
-                                createdUser.id = createdUser.id || nextUserId++;
+                                var createdUser = newUser;
+                                createdUser.id = res.user_id;
                                 users.push(createdUser);
                                 renderUsers(); renderStats();
                                 showToast('用户 ' + name + ' 已创建', 'success');
@@ -2277,14 +2275,14 @@
                     dataType: 'json',
                     success: function(res) {
                         if (res.status == 0) {
-                            var newTemplate = res.data || {
-                                id: nextTemplateId++,
+                            var newTemplate = {
                                 name: templateTitle + '.txt',
                                 title: templateTitle,
                                 size: '0.1 MB',
                                 transcript: transcript,
                                 status: '已就绪'
                             };
+                            newTemplate.id = res.template_id;
                             templates.push(newTemplate);
                             $('#transcriptInput').val('');
                             $('#templateNameInput').val('');

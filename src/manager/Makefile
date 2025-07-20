@@ -66,8 +66,8 @@ LIBS += \
 #CFLAGS    += -g -Wall -fno-strict-aliasing -Wfloat-equal -Wno-unused-function -Wl,-Bsymbolic
 
 LIBPATHS  +=
-CPPFLAGS  = $(CFLAGS) -std=c++11
-CXXFLAGS  = $(CFLAGS) -std=c++11
+CPPFLAGS  = $(CFLAGS) -std=c++17
+CXXFLAGS  = $(CFLAGS) -std=c++17
 
 SOURCES += \
   global.cpp \

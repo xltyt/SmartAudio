@@ -16,7 +16,7 @@ device = "cpu"
 model_dir = "../../data/model_ori"
 target_model_dir = "../../data/model"
 os.system("mkdir -p %s" % target_model_dir)
-hyper_yaml_path = model_dir + '/cosyvoice.yaml'
+hyper_yaml_path = './cosyvoice.yaml'
 if not os.path.exists(hyper_yaml_path):
   raise ValueError('{} not found!'.format(hyper_yaml_path))
 

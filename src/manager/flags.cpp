@@ -1,7 +1,7 @@
 /****************************************************\
  *
  * Copyright (C) 2020 360.com, Inc. All Rights Reserved
- * Last modified: 2023.09.01 09:15:18
+ * Last modified: 2026.07.17 18:10:55
  *
 \****************************************************/
 
@@ -9,8 +9,8 @@
 
 DEFINE_bool(debug, true, "");
 DEFINE_string(http_host, "127.0.0.1", "");
-DEFINE_int32(http_port, 8888, "");
-DEFINE_int32(https_port, 8886, "");
+DEFINE_int32(http_port, 28900, "");
+DEFINE_int32(https_port, 28901, "");
 DEFINE_int32(http_api_port, 28800, "");
 DEFINE_int32(timeout_connect, 1000 * 3, "");
 DEFINE_int32(timeout_read, 1000 * 60, "");

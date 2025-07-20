@@ -1,7 +1,7 @@
 /****************************************************\
  *
  * Copyright (C) 2019 All Rights Reserved
- * Last modified: 
+ * Last modified: 2026.07.17 17:12:47
  *
 \****************************************************/
 
@@ -22,7 +22,10 @@ extern "C" int global_upload_file(const char *client_filename, const char *filep
   std::string new_name = "template_" + Crypt::gen_random_string(16) + ".mp3";
   std::string path = mycommon::get_current_dir() + "/data/" + new_name;
   unlink(path.c_str());
-  int ret = rename(filepath, path.c_str());
+  std::string content;
+  mycommon::file_read(filepath, content);
+  mycommon::file_write(path, content);
+  int ret = 0;
   strcpy(save_filename, new_name.c_str());
   LOG(INFO) << "Upload Ori[" << filepath << "] New[" << path << "] Ret[" << ret << "] Err[" << errno << "]";
   return ret;

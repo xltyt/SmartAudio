@@ -34,8 +34,10 @@ clean:
 	make clean -C common
 	make clean -C search
 	MODE=gpu make clean -C search
+	make clean -C manager
 	PLATFORM=arm make clean -C common
 	PLATFORM=arm make clean -C search
+	PLATFORM=arm make clean -C manager
 
 distclean:
 	make clean

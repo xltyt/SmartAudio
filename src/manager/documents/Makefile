@@ -13,7 +13,7 @@ cache/smart.c: $(DEP_CONTENT) $(DEP_CONTROLLER)
 	expansive render
 	esp --combine compile
 	@echo "\033[32m=====> Deploy Html\033[0m"
-	cp -r js/ data dist/
+	cp -r js/ dist/
 	cp -r css/* dist/css/
 	rm -rf deploy
 	expansive deploy
